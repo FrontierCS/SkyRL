@@ -36,7 +36,7 @@ MINI_BATCH_SIZE=8    # n_samples_per_prompt × snapshots_per_batch (13 snapshots
 # ── EvolveAgent config ───────────────────────────────────────────────────────
 NUM_TURNS=5
 MAX_SOLVER_CALLS=6
-MAX_ADVISOR_CONTEXT_ITERS=10
+MAX_ADVISOR_CONTEXT_ITERS=5
 LANG=cpp
 
 # ── Dr. GRPO ─────────────────────────────────────────────────────────────────
