@@ -49,12 +49,14 @@ cd "$PROJECT_ROOT/SkyRL/skyrl-train"
 
 # scaleevolve lives in the project root — add it to PYTHONPATH so it's importable
 # from within the SkyRL venv
-export PYTHONPATH="$PROJECT_ROOT:${PYTHONPATH:-}"
+export PYTHONPATH="$PROJECT_ROOT:$PROJECT_ROOT/vendor/frontier-cs-internal/src:${PYTHONPATH:-}"
 export UV_CACHE_DIR="/data/qmang/uv_cache"
 export UV_PROJECT_ENVIRONMENT="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train"
 export HF_HOME="/data/qmang/hf_cache"
 export TRITON_CACHE_DIR="/data/qmang/triton_cache"
 export TORCH_HOME="/data/qmang/torch_cache"
+
+uv run --extra vllm python -c "import vllm; print(f'vllm version: {vllm.__version__}')"
 
 uv run --extra vllm -m examples.evolve.main_evolve \
   data.train_data="$TRAIN_DATA" \
