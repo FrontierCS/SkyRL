@@ -59,7 +59,7 @@ uv run --extra vllm -m examples.evolve.main_evolve \
   generator.inference_engine_tensor_parallel_size=1 \
   generator.enable_http_endpoint=true \
   generator.http_endpoint_host="127.0.0.1" \
-  generator.http_endpoint_port=8000 \
+  generator.http_endpoint_port=8002 \
   generator.backend=vllm \
   generator.run_engines_locally=true \
   generator.weight_sync_backend=nccl \
