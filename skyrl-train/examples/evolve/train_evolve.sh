@@ -51,6 +51,7 @@ cd "$PROJECT_ROOT/SkyRL/skyrl-train"
 # from within the SkyRL venv
 export PYTHONPATH="$PROJECT_ROOT:${PYTHONPATH:-}"
 export UV_CACHE_DIR="/data/qmang/uv_cache"
+export UV_PROJECT_ENVIRONMENT="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train"
 export HF_HOME="/data/qmang/hf_cache"
 export TRITON_CACHE_DIR="/data/qmang/triton_cache"
 export TORCH_HOME="/data/qmang/torch_cache"
