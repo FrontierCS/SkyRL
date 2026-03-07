@@ -70,6 +70,10 @@ uv run --extra vllm -m examples.evolve.main_evolve \
   +generator.engine_init_kwargs.chat_template="$CHAT_TEMPLATE_PATH" \
   +generator.engine_init_kwargs.max_model_len=$MAX_MODEL_LEN \
   +generator.engine_init_kwargs.enable_log_requests=false \
+  +generator.engine_init_kwargs.enable_auto_tool_choice=true \
+  +generator.engine_init_kwargs.tool_call_parser=qwen3_coder \
+  +generator.engine_init_kwargs.language_model_only=true \
+  +generator.engine_init_kwargs.attention_backend=FLASH_ATTN \
   +evolve.problem_id=0 \
   +evolve.snapshots_root="$SNAPSHOTS_ROOT" \
   +evolve.solution_pool_path="$SOLUTION_POOL_PATH" \
