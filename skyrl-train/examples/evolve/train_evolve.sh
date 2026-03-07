@@ -31,12 +31,13 @@ SERVED_MODEL_NAME="Qwen3.5-27B"
 # ── Infrastructure ───────────────────────────────────────────────────────────
 NUM_GPUS=4
 MAX_MODEL_LEN=32768
-MINI_BATCH_SIZE=8    # n_samples_per_prompt × snapshots_per_batch (13 snapshots total)
+N_SAMPLES_PER_PROMPT=8
+MINI_BATCH_SIZE=8    # must be a multiple of N_SAMPLES_PER_PROMPT
 
 # ── EvolveAgent config ───────────────────────────────────────────────────────
 NUM_TURNS=5
 MAX_SOLVER_CALLS=6
-MAX_ADVISOR_CONTEXT_ITERS=5
+MAX_ADVISOR_CONTEXT_ITERS=10
 LANG=cpp
 
 # ── Dr. GRPO ─────────────────────────────────────────────────────────────────
@@ -45,6 +46,10 @@ GRPO_NORM_BY_STD=false
 USE_KL_LOSS=false
 
 cd "$PROJECT_ROOT/SkyRL/skyrl-train"
+
+# scaleevolve lives in the project root — add it to PYTHONPATH so it's importable
+# from within the SkyRL venv
+export PYTHONPATH="$PROJECT_ROOT:${PYTHONPATH:-}"
 
 uv run --extra vllm -m examples.evolve.main_evolve \
   data.train_data="$TRAIN_DATA" \
@@ -60,6 +65,7 @@ uv run --extra vllm -m examples.evolve.main_evolve \
   generator.weight_sync_backend=nccl \
   generator.async_engine=true \
   generator.gpu_memory_utilization=0.8 \
+  generator.n_samples_per_prompt=$N_SAMPLES_PER_PROMPT \
   generator.sampling_params.max_generate_length=8192 \
   +generator.engine_init_kwargs.chat_template="$CHAT_TEMPLATE_PATH" \
   +generator.engine_init_kwargs.max_model_len=$MAX_MODEL_LEN \
