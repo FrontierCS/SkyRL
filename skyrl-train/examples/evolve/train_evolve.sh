@@ -50,6 +50,7 @@ cd "$PROJECT_ROOT/SkyRL/skyrl-train"
 # scaleevolve lives in the project root — add it to PYTHONPATH so it's importable
 # from within the SkyRL venv
 export PYTHONPATH="$PROJECT_ROOT:${PYTHONPATH:-}"
+export UV_CACHE_DIR="/data/qmang/uv_cache"
 
 uv run --extra vllm -m examples.evolve.main_evolve \
   data.train_data="$TRAIN_DATA" \
