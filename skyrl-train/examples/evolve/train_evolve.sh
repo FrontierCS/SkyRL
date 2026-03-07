@@ -18,9 +18,9 @@ SOLUTION_POOL_PATH="$PROJECT_ROOT/data/solution_pool_p0.json"
 SNAPSHOTS_ROOT="$PROJECT_ROOT/snapshots"
 
 RUN_NAME="evolve_p0_$(date +%Y%m%d_%H%M%S)"
-CKPTS_DIR="$PROJECT_ROOT/outputs/rl_training/$RUN_NAME/ckpts"
-EXPORTS_DIR="$PROJECT_ROOT/outputs/rl_training/$RUN_NAME/exports"
-LOG_DIR="/tmp/skyrl-logs/$RUN_NAME"
+CKPTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/ckpts"
+EXPORTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/exports"
+LOG_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/logs"
 
 CHAT_TEMPLATE_PATH="$SCRIPT_DIR/../../skyrl_train/utils/templates/qwen3_acc_thinking.jinja2"
 
@@ -51,6 +51,9 @@ cd "$PROJECT_ROOT/SkyRL/skyrl-train"
 # from within the SkyRL venv
 export PYTHONPATH="$PROJECT_ROOT:${PYTHONPATH:-}"
 export UV_CACHE_DIR="/data/qmang/uv_cache"
+export HF_HOME="/data/qmang/hf_cache"
+export TRITON_CACHE_DIR="/data/qmang/triton_cache"
+export TORCH_HOME="/data/qmang/torch_cache"
 
 uv run --extra vllm -m examples.evolve.main_evolve \
   data.train_data="$TRAIN_DATA" \
