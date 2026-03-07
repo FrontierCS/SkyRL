@@ -29,7 +29,7 @@ MODEL_PATH="/data/qmang/hf_cache/hub/models--Qwen--Qwen3.5-9B"
 SERVED_MODEL_NAME="Qwen3.5-9B"
 
 # ── Infrastructure ───────────────────────────────────────────────────────────
-NUM_GPUS=2
+NUM_GPUS=4
 MAX_MODEL_LEN=32768
 N_SAMPLES_PER_PROMPT=8
 MINI_BATCH_SIZE=8    # must be a multiple of N_SAMPLES_PER_PROMPT
