@@ -363,6 +363,10 @@ class AsyncVLLMInferenceEngine(BaseVLLMInferenceEngine):
 
             request_logger = RequestLogger(max_log_len=max_log_len)
 
+        # Ensure enable_auto_tools is set to True if not explicitly configured
+        if "enable_auto_tools" not in openai_kwargs:
+            openai_kwargs["enable_auto_tools"] = True
+
         self.openai_serving_chat = OpenAIServingChat(
             engine_client=engine,
             models=models,

@@ -1,30 +1,25 @@
 """SkyRL training entrypoint for EvolveGenerator advisor RL."""
 
+import sys
+
 import ray
-import hydra
-from omegaconf import DictConfig
+from skyrl.train.config import make_config
+from skyrl.train.entrypoints.main_base import BasePPOExp, validate_cfg
+from skyrl.train.utils import initialize_ray
 
-from skyrl.train.entrypoints.main_base import BasePPOExp, config_dir
-from skyrl.train.utils.utils import initialize_ray
-
-from scaleevolve.training.evolve_generator import EvolveGenerator
+from scaleevolve.training.evolve_generator import EvolveGenerator, EvolveGeneratorConfig
 from scaleevolve.training.dataset import EvolveTaskDataset
 
 
-class EvolveExp(BasePPOExp):
-    @staticmethod
-    def get_cfg_as_str(cfg: DictConfig) -> str:
-        """Override to handle DictConfig instead of dataclass."""
-        from omegaconf import OmegaConf
-        return OmegaConf.to_yaml(cfg)
+EvolveConfig = make_config(generator_cls=EvolveGeneratorConfig)
 
+
+class EvolveExp(BasePPOExp):
     def get_generator(self, cfg, tokenizer, inference_engine_client):
         return EvolveGenerator(
             generator_cfg=cfg.generator,
-            evolve_cfg=cfg.evolve,
             inference_engine_client=inference_engine_client,
             tokenizer=tokenizer,
-            max_seq_len=cfg.trainer.algorithm.max_seq_len,
         )
 
     def get_train_dataset(self):
@@ -41,15 +36,14 @@ class EvolveExp(BasePPOExp):
 
 
 @ray.remote(num_cpus=1)
-def skyrl_entrypoint(cfg: DictConfig):
+def skyrl_entrypoint(cfg):
     exp = EvolveExp(cfg)
     exp.run()
 
 
-@hydra.main(config_path=config_dir, config_name="ppo_base_config", version_base=None)
-def main(cfg: DictConfig) -> None:
-    # Note: Using DictConfig directly without typed config conversion
-    # to support custom 'evolve' field and legacy flat generator config structure
+def main() -> None:
+    cfg = EvolveConfig.from_cli_overrides(sys.argv[1:])
+    validate_cfg(cfg)
     initialize_ray(cfg)
     ray.get(skyrl_entrypoint.remote(cfg))
 

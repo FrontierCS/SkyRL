@@ -88,6 +88,10 @@ class WorkerWrap:
 
         weight_list = []
         for name, tensor in self._weight_receiver.receive_weights(request):
+            # Handle parameter name mismatch for Qwen3_5ForConditionalGeneration:
+            # FSDP training sends "model.*" but vLLM expects "language_model.model.*"
+            if not (name.startswith("language_model.") or name.startswith("visual.")):
+                name = f"language_model.{name}"
             weight_list.append((name, tensor))
 
         self.model_runner.model.load_weights(weights=weight_list)

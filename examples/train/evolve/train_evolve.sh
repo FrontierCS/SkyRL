@@ -6,7 +6,7 @@
 #   uv run python scripts/build_training_dataset.py --problem-id 0
 #
 # Usage (from project root):
-#   bash SkyRL/skyrl-train/examples/evolve/train_evolve.sh
+#   bash SkyRL/examples/train/evolve/train_evolve.sh
 set -euo pipefail
 
 # ── Paths ────────────────────────────────────────────────────────────────────
@@ -45,76 +45,74 @@ LOSS_REDUCTION="seq_mean_token_sum_norm"
 GRPO_NORM_BY_STD=false
 USE_KL_LOSS=false
 
-cd "$PROJECT_ROOT/SkyRL/skyrl-train"
+cd "$PROJECT_ROOT/SkyRL"
 
 # scaleevolve lives in the project root — add it to PYTHONPATH so it's importable
 # from within the SkyRL venv
 export PYTHONPATH="$PROJECT_ROOT:$PROJECT_ROOT/vendor/frontier-cs-internal/src:${PYTHONPATH:-}"
 export UV_CACHE_DIR="/data/qmang/uv_cache"
-export UV_PROJECT_ENVIRONMENT="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train"
+export UV_PROJECT_ENVIRONMENT="/data/qmang/Frontier-CS-Evolve-venv/skyrl"
 export HF_HOME="/data/qmang/hf_cache"
 export TRITON_CACHE_DIR="/data/qmang/triton_cache"
 export TORCH_HOME="/data/qmang/torch_cache"
 export FLASHINFER_DISABLE_VERSION_CHECK=1
 export FLASHINFER_WORKSPACE_DIR="/data/qmang/flashinfer_cache"
 
-/data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python -c "import vllm; print(f'vllm version: {vllm.__version__}')"
+/data/qmang/Frontier-CS-Evolve-venv/skyrl/bin/python -c "import vllm; print(f'vllm version: {vllm.__version__}')"
 
-/data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python -m examples.evolve.main_evolve \
+/data/qmang/Frontier-CS-Evolve-venv/skyrl/bin/python -m examples.train.evolve.main_evolve \
   data.train_data="$TRAIN_DATA" \
   trainer.policy.model.path="$MODEL_PATH" \
-  +generator.inference_engine.model_dtype=bfloat16 \
-  +generator.inference_engine.served_model_name="$SERVED_MODEL_NAME" \
-  +generator.inference_engine.num_engines=$NUM_GPUS \
-  +generator.inference_engine.tensor_parallel_size=1 \
-  +generator.inference_engine.pipeline_parallel_size=1 \
-  +generator.inference_engine.expert_parallel_size=1 \
-  +generator.inference_engine.data_parallel_size=1 \
-  +generator.inference_engine.enable_http_endpoint=true \
-  +generator.inference_engine.http_endpoint_host="127.0.0.1" \
-  +generator.inference_engine.http_endpoint_port=8002 \
-  +generator.inference_engine.backend=vllm \
-  +generator.inference_engine.run_engines_locally=true \
-  +generator.inference_engine.weight_sync_backend=nccl \
-  +generator.inference_engine.async_engine=true \
-  +generator.inference_engine.gpu_memory_utilization=0.8 \
-  +generator.inference_engine.vllm_v1_disable_multiproc=true \
-  +generator.inference_engine.enable_prefix_caching=true \
-  +generator.inference_engine.enable_chunked_prefill=true \
-  +generator.inference_engine.max_num_batched_tokens=8192 \
-  +generator.inference_engine.max_num_seqs=1024 \
-  +generator.inference_engine.enforce_eager=true \
-  +generator.inference_engine.fully_sharded_loras=false \
-  +generator.inference_engine.enable_ray_prometheus_stats=false \
-  +generator.inference_engine.override_existing_update_group=auto \
-  +generator.inference_engine.weight_transfer_threshold_cuda_ipc_GB=1.0 \
-  generator.served_model_name="$SERVED_MODEL_NAME" \
-  generator.http_endpoint_host="127.0.0.1" \
-  generator.http_endpoint_port=8002 \
+  generator.inference_engine.model_dtype=bfloat16 \
+  generator.inference_engine.served_model_name="$SERVED_MODEL_NAME" \
+  generator.inference_engine.num_engines=$NUM_GPUS \
+  generator.inference_engine.tensor_parallel_size=1 \
+  generator.inference_engine.pipeline_parallel_size=1 \
+  generator.inference_engine.expert_parallel_size=1 \
+  generator.inference_engine.data_parallel_size=1 \
+  generator.inference_engine.enable_http_endpoint=true \
+  generator.inference_engine.http_endpoint_host="127.0.0.1" \
+  generator.inference_engine.http_endpoint_port=8002 \
+  generator.inference_engine.backend=vllm \
+  generator.inference_engine.run_engines_locally=true \
+  generator.inference_engine.weight_sync_backend=nccl \
+  generator.inference_engine.async_engine=true \
+  generator.inference_engine.gpu_memory_utilization=0.8 \
+  generator.inference_engine.vllm_v1_disable_multiproc=true \
+  generator.inference_engine.enable_prefix_caching=true \
+  generator.inference_engine.enable_chunked_prefill=true \
+  generator.inference_engine.max_num_batched_tokens=8192 \
+  generator.inference_engine.max_num_seqs=1024 \
+  generator.inference_engine.enforce_eager=true \
+  generator.inference_engine.fully_sharded_loras=false \
+  generator.inference_engine.enable_ray_prometheus_stats=false \
+  generator.inference_engine.override_existing_update_group=auto \
+  generator.inference_engine.weight_transfer_threshold_cuda_ipc_GB=1.0 \
   generator.n_samples_per_prompt=$N_SAMPLES_PER_PROMPT \
   generator.sampling_params.max_generate_length=8192 \
-  +generator.inference_engine.engine_init_kwargs.chat_template="$CHAT_TEMPLATE_PATH" \
-  +generator.inference_engine.engine_init_kwargs.max_model_len=$MAX_MODEL_LEN \
-  +generator.inference_engine.engine_init_kwargs.enable_log_requests=true \
-  +generator.inference_engine.engine_init_kwargs.enable_auto_tool_choice=true \
-  +generator.inference_engine.engine_init_kwargs.tool_call_parser=qwen3_coder \
-  +generator.inference_engine.engine_init_kwargs.reasoning_parser=qwen3 \
-  +generator.inference_engine.engine_init_kwargs.attention_backend=FLASH_ATTN \
-  +evolve.problem_id=0 \
-  +evolve.snapshots_root="$SNAPSHOTS_ROOT" \
-  +evolve.solution_pool_path="$SOLUTION_POOL_PATH" \
-  +evolve.num_turns=$NUM_TURNS \
-  +evolve.max_solver_calls=$MAX_SOLVER_CALLS \
-  +evolve.max_advisor_context_iters=$MAX_ADVISOR_CONTEXT_ITERS \
-  +evolve.lang=$LANG \
+  generator.inference_engine.engine_init_kwargs.chat_template="$CHAT_TEMPLATE_PATH" \
+  generator.inference_engine.engine_init_kwargs.max_model_len=$MAX_MODEL_LEN \
+  generator.inference_engine.engine_init_kwargs.enable_log_requests=true \
+  generator.inference_engine.engine_init_kwargs.enable_auto_tool_choice=true \
+  generator.inference_engine.engine_init_kwargs.tool_call_parser=qwen3_coder \
+  generator.inference_engine.engine_init_kwargs.reasoning_parser=qwen3 \
+  generator.inference_engine.engine_init_kwargs.attention_backend=FLASH_ATTN \
+  generator.problem_id=0 \
+  generator.snapshots_root="$SNAPSHOTS_ROOT" \
+  generator.solution_pool_path="$SOLUTION_POOL_PATH" \
+  generator.num_turns=$NUM_TURNS \
+  generator.max_solver_calls=$MAX_SOLVER_CALLS \
+  generator.max_advisor_context_iters=$MAX_ADVISOR_CONTEXT_ITERS \
+  generator.lang=$LANG \
+  generator.max_seq_len=$MAX_MODEL_LEN \
   trainer.algorithm.advantage_estimator=grpo \
   trainer.algorithm.loss_reduction=$LOSS_REDUCTION \
   trainer.algorithm.grpo_norm_by_std=$GRPO_NORM_BY_STD \
   trainer.algorithm.use_kl_loss=$USE_KL_LOSS \
-  +trainer.algorithm.temperature=1.0 \
-  +trainer.algorithm.max_seq_len=$MAX_MODEL_LEN \
-  +trainer.policy.fsdp_config.wrap_policy.transformer_layer_cls_to_wrap="['Qwen3_5DecoderLayer']" \
-  +trainer.ref.fsdp_config.wrap_policy.transformer_layer_cls_to_wrap="['Qwen3_5DecoderLayer']" \
+  trainer.algorithm.temperature=1.0 \
+  trainer.algorithm.max_seq_len=$MAX_MODEL_LEN \
+  trainer.policy.fsdp_config.wrap_policy.transformer_layer_cls_to_wrap="['Qwen3_5DecoderLayer']" \
+  trainer.ref.fsdp_config.wrap_policy.transformer_layer_cls_to_wrap="['Qwen3_5DecoderLayer']" \
   trainer.placement.colocate_all=true \
   trainer.strategy=fsdp2 \
   trainer.placement.policy_num_nodes=1 \
