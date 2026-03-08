@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Train the advisor model (Qwen3.5-27B) with EvolveGenerator on problem 0.
+# Train the advisor model (Qwen3.5-9B) with EvolveGenerator on problem 0.
 #
 # Prerequisites:
 #   uv run python scripts/build_solution_pool.py --problem-id 0
@@ -51,16 +51,16 @@ cd "$PROJECT_ROOT/SkyRL"
 # from within the SkyRL venv
 export PYTHONPATH="$PROJECT_ROOT:$PROJECT_ROOT/vendor/frontier-cs-internal/src:${PYTHONPATH:-}"
 export UV_CACHE_DIR="/data/qmang/uv_cache"
-export UV_PROJECT_ENVIRONMENT="/data/qmang/Frontier-CS-Evolve-venv/skyrl"
+export UV_PROJECT_ENVIRONMENT="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train"
 export HF_HOME="/data/qmang/hf_cache"
 export TRITON_CACHE_DIR="/data/qmang/triton_cache"
 export TORCH_HOME="/data/qmang/torch_cache"
 export FLASHINFER_DISABLE_VERSION_CHECK=1
 export FLASHINFER_WORKSPACE_DIR="/data/qmang/flashinfer_cache"
 
-/data/qmang/Frontier-CS-Evolve-venv/skyrl/bin/python -c "import vllm; print(f'vllm version: {vllm.__version__}')"
+/data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python -c "import vllm; print(f'vllm version: {vllm.__version__}')"
 
-/data/qmang/Frontier-CS-Evolve-venv/skyrl/bin/python -m examples.train.evolve.main_evolve \
+/data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python -m examples.train.evolve.main_evolve \
   data.train_data="$TRAIN_DATA" \
   trainer.policy.model.path="$MODEL_PATH" \
   generator.inference_engine.model_dtype=bfloat16 \
