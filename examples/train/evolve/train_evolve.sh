@@ -38,7 +38,7 @@ SERVED_MODEL_NAME="Qwen3.5-9B"
 # GPU layout: GPU 0 → advisor vLLM + FSDP training (colocated)
 #             GPUs 1-3 → frozen solver vLLM
 ADVISOR_GPUS="0"
-SOLVER_GPUS="1,2,3"
+SOLVER_GPUS="1,3,6"
 NUM_GPUS=1           # advisor + training use 1 GPU
 SOLVER_NUM_GPUS=3    # solver uses 3 GPUs (data parallel)
 MAX_MODEL_LEN=262144
@@ -86,7 +86,7 @@ mkdir -p "$LOG_DIR"
 echo "Starting frozen solver vLLM on port ${SOLVER_PORT} (GPUs ${SOLVER_GPUS})..."
 
 # QMANG's vllm serve command
-PREFIX_VLLM_SERVE="HF_HUB_OFFLINE=1 FLASHINFER_WORKSPACE_DIR=/data/qmang/flashinfer_cache PATH=/data/qmang/.venv/bin:$PATH /data/qmang/.venv/bin/vllm serve"
+PREFIX_VLLM_SERVE="env HF_HUB_OFFLINE=1 FLASHINFER_WORKSPACE_DIR=/data/qmang/flashinfer_cache PATH=/data/qmang/.venv/bin:$PATH /data/qmang/.venv/bin/vllm serve"
 
 # Charlie's vllm serve command
 # PREFIX_VLLM_SERVE="uv run --isolated --extra fsdp vllm serve"
