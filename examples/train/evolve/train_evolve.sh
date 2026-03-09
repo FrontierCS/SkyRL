@@ -29,11 +29,20 @@ MODEL_PATH="/data/qmang/hf_cache/hub/models--Qwen--Qwen3.5-9B"
 SERVED_MODEL_NAME="Qwen3.5-9B"
 
 # ── Infrastructure ───────────────────────────────────────────────────────────
-NUM_GPUS=4
+# GPU layout: GPU 0 → advisor vLLM + FSDP training (colocated)
+#             GPUs 1-3 → frozen solver vLLM
+ADVISOR_GPUS="0"
+SOLVER_GPUS="1,2,3"
+NUM_GPUS=1           # advisor + training use 1 GPU
+SOLVER_NUM_GPUS=3    # solver uses 3 GPUs (data parallel)
 MAX_MODEL_LEN=32768
 INFERENCE_MAX_MODEL_LEN=262144
 N_SAMPLES_PER_PROMPT=8
 MINI_BATCH_SIZE=8    # must be a multiple of N_SAMPLES_PER_PROMPT
+
+# ── Solver (frozen) vLLM server ───────────────────────────────────────────────
+SOLVER_PORT=8001
+SOLVER_BASE_URL="http://127.0.0.1:${SOLVER_PORT}/v1"
 
 # ── EvolveAgent config ───────────────────────────────────────────────────────
 NUM_TURNS=5
@@ -61,6 +70,47 @@ export FLASHINFER_WORKSPACE_DIR="/data/qmang/flashinfer_cache"
 
 /data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python -c "import vllm; print(f'vllm version: {vllm.__version__}')"
 
+# ── Start frozen solver vLLM server ──────────────────────────────────────────
+mkdir -p "$LOG_DIR"
+echo "Starting frozen solver vLLM on port ${SOLVER_PORT} (GPUs ${SOLVER_GPUS})..."
+CUDA_VISIBLE_DEVICES="$SOLVER_GPUS" \
+  HF_HUB_OFFLINE=1 \
+  FLASHINFER_WORKSPACE_DIR=/data/qmang/flashinfer_cache \
+  PATH="/data/qmang/.venv/bin:$PATH" \
+  /data/qmang/.venv/bin/vllm serve \
+    "$MODEL_PATH" \
+    --port "$SOLVER_PORT" \
+    --host 127.0.0.1 \
+    -dp "$SOLVER_NUM_GPUS" \
+    --max-model-len "$INFERENCE_MAX_MODEL_LEN" \
+    --reasoning-parser qwen3 \
+    --enable-auto-tool-choice \
+    --tool-call-parser qwen3_coder \
+    --served-model-name "$SERVED_MODEL_NAME" \
+    --language-model-only \
+    --gpu-memory-utilization 0.8 \
+    --attention-backend FLASH_ATTN \
+    >> "$LOG_DIR/solver-vllm.log" 2>&1 &
+SOLVER_PID=$!
+
+# Kill solver on exit
+trap 'echo "Stopping solver vLLM (pid $SOLVER_PID)..."; kill "$SOLVER_PID" 2>/dev/null; wait "$SOLVER_PID" 2>/dev/null' EXIT
+
+# Wait for solver server to be ready (up to 3 minutes)
+echo "Waiting for solver vLLM server to be ready..."
+for i in $(seq 1 180); do
+  if curl -sf "http://127.0.0.1:${SOLVER_PORT}/health" > /dev/null 2>&1; then
+    echo "Solver vLLM ready after ${i}s"
+    break
+  fi
+  if ! kill -0 "$SOLVER_PID" 2>/dev/null; then
+    echo "ERROR: Solver vLLM process died. Check $LOG_DIR/solver-vllm.log"
+    exit 1
+  fi
+  sleep 1
+done
+
+CUDA_VISIBLE_DEVICES="$ADVISOR_GPUS" \
 /data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python -m examples.train.evolve.main_evolve \
   data.train_data="$TRAIN_DATA" \
   trainer.policy.model.path="$MODEL_PATH" \
@@ -112,6 +162,7 @@ export FLASHINFER_WORKSPACE_DIR="/data/qmang/flashinfer_cache"
   generator.max_advisor_context_iters=$MAX_ADVISOR_CONTEXT_ITERS \
   generator.lang=$LANG \
   generator.max_seq_len=$MAX_MODEL_LEN \
+  generator.solver_base_url="$SOLVER_BASE_URL" \
   trainer.algorithm.advantage_estimator=grpo \
   trainer.algorithm.loss_reduction=$LOSS_REDUCTION \
   trainer.algorithm.grpo_norm_by_std=$GRPO_NORM_BY_STD \
