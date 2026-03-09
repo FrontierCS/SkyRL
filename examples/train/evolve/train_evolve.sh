@@ -20,7 +20,8 @@ SNAPSHOTS_ROOT="$PROJECT_ROOT/snapshots"
 RUN_NAME="evolve_p0_$(date +%Y%m%d_%H%M%S)"
 CKPTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/ckpts"
 EXPORTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/exports"
-LOG_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/logs"
+export LOG_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/logs"
+ROLLOUTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/rollouts"
 
 # ── Model ────────────────────────────────────────────────────────────────────
 MODEL_PATH="/data/qmang/hf_cache/hub/models--Qwen--Qwen3.5-9B"
@@ -34,16 +35,16 @@ SOLVER_GPUS="1,2,3"
 NUM_GPUS=1           # advisor + training use 1 GPU
 SOLVER_NUM_GPUS=3    # solver uses 3 GPUs (data parallel)
 MAX_MODEL_LEN=262144
-N_SAMPLES_PER_PROMPT=8
-MINI_BATCH_SIZE=8    # must be a multiple of N_SAMPLES_PER_PROMPT
+N_SAMPLES_PER_PROMPT=2
+MINI_BATCH_SIZE=1    # must be a multiple of N_SAMPLES_PER_PROMPT
 
 # ── Solver (frozen) vLLM server ───────────────────────────────────────────────
 SOLVER_PORT=8001
 SOLVER_BASE_URL="http://127.0.0.1:${SOLVER_PORT}/v1"
 
 # ── EvolveAgent config ───────────────────────────────────────────────────────
-NUM_TURNS=5
-MAX_SOLVER_CALLS=6
+NUM_TURNS=2
+MAX_SOLVER_CALLS=5
 MAX_ADVISOR_CONTEXT_ITERS=10
 LANG=cpp
 
@@ -145,7 +146,7 @@ CUDA_VISIBLE_DEVICES="$ADVISOR_GPUS" \
   generator.sampling_params.repetition_penalty=1.1 \
   generator.sampling_params.presence_penalty=0.6 \
   generator.inference_engine.engine_init_kwargs.max_model_len=$MAX_MODEL_LEN \
-  generator.inference_engine.engine_init_kwargs.enable_log_requests=true \
+  generator.inference_engine.engine_init_kwargs.enable_log_requests=false \
   generator.inference_engine.engine_init_kwargs.enable_auto_tool_choice=true \
   generator.inference_engine.engine_init_kwargs.tool_call_parser=qwen3_coder \
   generator.inference_engine.engine_init_kwargs.reasoning_parser=qwen3 \
@@ -159,6 +160,7 @@ CUDA_VISIBLE_DEVICES="$ADVISOR_GPUS" \
   generator.lang=$LANG \
   generator.max_seq_len=$MAX_MODEL_LEN \
   generator.solver_base_url="$SOLVER_BASE_URL" \
+  generator.rl_rollouts_dir="$ROLLOUTS_DIR" \
   trainer.algorithm.advantage_estimator=grpo \
   trainer.algorithm.loss_reduction=$LOSS_REDUCTION \
   trainer.algorithm.grpo_norm_by_std=$GRPO_NORM_BY_STD \
