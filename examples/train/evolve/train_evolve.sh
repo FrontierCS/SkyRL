@@ -9,8 +9,13 @@
 #   bash SkyRL/examples/train/evolve/train_evolve.sh
 set -euo pipefail
 
+# Charlie's dump directory
+# DUMP_DIR="/mnt/local_storage"
+DUMP_DIR="/data/qmang"
+
 # ── Paths ────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The path to Frontier-CS-Evolve
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
 TRAIN_DATA="['$PROJECT_ROOT/data/train_p0.jsonl']"
@@ -18,12 +23,14 @@ SOLUTION_POOL_PATH="$PROJECT_ROOT/data/solution_pool_p0.json"
 SNAPSHOTS_ROOT="$PROJECT_ROOT/snapshots"
 
 RUN_NAME="evolve_p0_$(date +%Y%m%d_%H%M%S)"
-CKPTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/ckpts"
-EXPORTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/exports"
-export LOG_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/logs"
-ROLLOUTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/rollouts"
+CKPTS_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/ckpts"
+EXPORTS_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/exports"
+export LOG_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/logs"
+ROLLOUTS_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/rollouts"
 
 # ── Model ────────────────────────────────────────────────────────────────────
+# MODEL_PATH="Qwen/Qwen3-4B"
+# SERVED_MODEL_NAME="Qwen3-4B"
 MODEL_PATH="/data/qmang/hf_cache/hub/models--Qwen--Qwen3.5-9B"
 SERVED_MODEL_NAME="Qwen3.5-9B"
 
@@ -35,6 +42,7 @@ SOLVER_GPUS="1,2,3"
 NUM_GPUS=1           # advisor + training use 1 GPU
 SOLVER_NUM_GPUS=3    # solver uses 3 GPUs (data parallel)
 MAX_MODEL_LEN=262144
+# MAX_MODEL_LEN=32000  # For Qwen3
 N_SAMPLES_PER_PROMPT=2
 MINI_BATCH_SIZE=1    # must be a multiple of N_SAMPLES_PER_PROMPT
 
@@ -58,6 +66,11 @@ cd "$PROJECT_ROOT/SkyRL"
 # scaleevolve lives in the project root — add it to PYTHONPATH so it's importable
 # from within the SkyRL venv
 export PYTHONPATH="$PROJECT_ROOT:$PROJECT_ROOT/vendor/frontier-cs-internal/src:${PYTHONPATH:-}"
+
+# Export the PYTHONPATH to the SkyRL venv (needed by Charlie, not QMANG)
+# export SKYRL_PYTHONPATH_EXPORT=1 
+
+# QMANG's environment variables
 export UV_CACHE_DIR="/data/qmang/uv_cache"
 export UV_PROJECT_ENVIRONMENT="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train"
 export HF_HOME="/data/qmang/hf_cache"
@@ -71,11 +84,15 @@ export FLASHINFER_WORKSPACE_DIR="/data/qmang/flashinfer_cache"
 # ── Start frozen solver vLLM server ──────────────────────────────────────────
 mkdir -p "$LOG_DIR"
 echo "Starting frozen solver vLLM on port ${SOLVER_PORT} (GPUs ${SOLVER_GPUS})..."
-CUDA_VISIBLE_DEVICES="$SOLVER_GPUS" \
-  HF_HUB_OFFLINE=1 \
-  FLASHINFER_WORKSPACE_DIR=/data/qmang/flashinfer_cache \
-  PATH="/data/qmang/.venv/bin:$PATH" \
-  /data/qmang/.venv/bin/vllm serve \
+
+# QMANG's vllm serve command
+PREFIX_VLLM_SERVE="HF_HUB_OFFLINE=1 FLASHINFER_WORKSPACE_DIR=/data/qmang/flashinfer_cache PATH=/data/qmang/.venv/bin:$PATH /data/qmang/.venv/bin/vllm serve"
+
+# Charlie's vllm serve command
+# PREFIX_VLLM_SERVE="uv run --isolated --extra fsdp vllm serve"
+
+# NOTE(Charlie): Remove --language-model-only \ for Qwen3 / lower vllm version
+CUDA_VISIBLE_DEVICES="$SOLVER_GPUS" $PREFIX_VLLM_SERVE \
     "$MODEL_PATH" \
     --port "$SOLVER_PORT" \
     --host 127.0.0.1 \
@@ -108,9 +125,18 @@ for i in $(seq 1 180); do
   sleep 1
 done
 
+# QMANG's python command
+PREFIX_SKYRL_PYTHON="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python"
+# Charlie's python command
+# PREFIX_SKYRL_PYTHON="uv run --isolated --extra fsdp --extra frontier-cs python"
+
+# NOTE(Charlie): Remove `fsdp_config.wrap_policy.transformer_layer_cls_to_wrap` for Qwen3
+# it is for Qwen3.5
+
 CUDA_VISIBLE_DEVICES="$ADVISOR_GPUS" \
-/data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python -m examples.train.evolve.main_evolve \
+$PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   data.train_data="$TRAIN_DATA" \
+  data.val_data="[]" \
   trainer.policy.model.path="$MODEL_PATH" \
   generator.inference_engine.model_dtype=bfloat16 \
   generator.inference_engine.served_model_name="$SERVED_MODEL_NAME" \
