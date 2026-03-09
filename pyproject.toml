@@ -134,6 +134,30 @@ miniswe = [
     "mini-swe-agent>=1.12.0",
     "litellm",
 ]
+frontier-cs = [
+    # frontier-cs deps
+    "anthropic>=0.74.0",
+    "colorlog>=6.10.1",
+    "google-genai>=1.55.0",
+    "google-generativeai>=0.8.5",
+    "numpy>=1.24",
+    "openai>=2.8.1",
+    "python-dotenv>=1.2.1",
+    "pyyaml>=6.0",
+    "requests>=2.32.5",
+    "tqdm>=4.67.1",
+    # scaleevolve deps
+    "pydantic>=2.0.0",
+    "scipy>=1.17.0",
+    "numba>=0.61",
+    "matplotlib>=3.10.8",
+    "pymoo>=0.6.1.6",
+    "nevergrad>=1.0.12",
+    "deap>=1.4.3",
+    "shapely>=2.1.2",
+    "gepa>=0.0.27",
+    "wandb>=0.25.0",
+]
 harbor = [
     "harbor; python_version >= '3.12'",
 ]
@@ -189,6 +213,7 @@ conflicts = [
         { extra = "tpu" },
         { extra = "flashrl" },
         { extra = "miniswe" },
+        { extra = "frontier-cs" },
     ]
 ]
 # disable build isolation for megatron related dependencies
