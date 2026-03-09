@@ -22,7 +22,7 @@ CKPTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/ckpts"
 EXPORTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/exports"
 LOG_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/logs"
 
-CHAT_TEMPLATE_PATH="$PROJECT_ROOT/SkyRL/skyrl/train/utils/templates/qwen3_acc_thinking.jinja2"
+CHAT_TEMPLATE_PATH="$PROJECT_ROOT/SkyRL/skyrl/train/utils/templates/qwen3_5_default.jinja2"
 
 # ── Model ────────────────────────────────────────────────────────────────────
 MODEL_PATH="/data/qmang/hf_cache/hub/models--Qwen--Qwen3.5-9B"
@@ -98,7 +98,7 @@ export FLASHINFER_WORKSPACE_DIR="/data/qmang/flashinfer_cache"
   generator.sampling_params.top_k=20 \
   generator.sampling_params.min_p=0.0 \
   generator.sampling_params.repetition_penalty=1.1 \
-  +generator.sampling_params.presence_penalty=0.6 \
+  generator.sampling_params.presence_penalty=0.6 \
   +generator.inference_engine.engine_init_kwargs.chat_template="$CHAT_TEMPLATE_PATH" \
   +generator.inference_engine.engine_init_kwargs.max_model_len=$MAX_MODEL_LEN \
   +generator.inference_engine.engine_init_kwargs.enable_log_requests=true \

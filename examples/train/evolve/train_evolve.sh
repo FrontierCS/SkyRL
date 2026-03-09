@@ -22,7 +22,7 @@ CKPTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/ckpts"
 EXPORTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/exports"
 LOG_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/logs"
 
-CHAT_TEMPLATE_PATH="$PROJECT_ROOT/SkyRL/skyrl/train/utils/templates/qwen3_acc_thinking.jinja2"
+CHAT_TEMPLATE_PATH="$PROJECT_ROOT/SkyRL/skyrl/train/utils/templates/qwen3_5_default.jinja2"
 
 # ── Model ────────────────────────────────────────────────────────────────────
 MODEL_PATH="/data/qmang/hf_cache/hub/models--Qwen--Qwen3.5-9B"
@@ -31,6 +31,7 @@ SERVED_MODEL_NAME="Qwen3.5-9B"
 # ── Infrastructure ───────────────────────────────────────────────────────────
 NUM_GPUS=4
 MAX_MODEL_LEN=32768
+INFERENCE_MAX_MODEL_LEN=262144
 N_SAMPLES_PER_PROMPT=8
 MINI_BATCH_SIZE=8    # must be a multiple of N_SAMPLES_PER_PROMPT
 
@@ -89,9 +90,15 @@ export FLASHINFER_WORKSPACE_DIR="/data/qmang/flashinfer_cache"
   generator.inference_engine.override_existing_update_group=auto \
   generator.inference_engine.weight_transfer_threshold_cuda_ipc_GB=1.0 \
   generator.n_samples_per_prompt=$N_SAMPLES_PER_PROMPT \
-  generator.sampling_params.max_generate_length=8192 \
+  generator.sampling_params.max_generate_length=32768 \
+  generator.sampling_params.temperature=0.6 \
+  generator.sampling_params.top_p=0.95 \
+  generator.sampling_params.top_k=20 \
+  generator.sampling_params.min_p=0.0 \
+  generator.sampling_params.repetition_penalty=1.1 \
+  generator.sampling_params.presence_penalty=0.6 \
   generator.inference_engine.engine_init_kwargs.chat_template="$CHAT_TEMPLATE_PATH" \
-  generator.inference_engine.engine_init_kwargs.max_model_len=$MAX_MODEL_LEN \
+  generator.inference_engine.engine_init_kwargs.max_model_len=$INFERENCE_MAX_MODEL_LEN \
   generator.inference_engine.engine_init_kwargs.enable_log_requests=true \
   generator.inference_engine.engine_init_kwargs.enable_auto_tool_choice=true \
   generator.inference_engine.engine_init_kwargs.tool_call_parser=qwen3_coder \
