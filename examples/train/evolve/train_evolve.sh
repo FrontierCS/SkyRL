@@ -22,8 +22,6 @@ CKPTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/ckpts"
 EXPORTS_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/exports"
 LOG_DIR="/data/qmang/outputs/rl_training/$RUN_NAME/logs"
 
-CHAT_TEMPLATE_PATH="$PROJECT_ROOT/SkyRL/skyrl/train/utils/templates/qwen3_5_default.jinja2"
-
 # ── Model ────────────────────────────────────────────────────────────────────
 MODEL_PATH="/data/qmang/hf_cache/hub/models--Qwen--Qwen3.5-9B"
 SERVED_MODEL_NAME="Qwen3.5-9B"
@@ -35,8 +33,7 @@ ADVISOR_GPUS="0"
 SOLVER_GPUS="1,2,3"
 NUM_GPUS=1           # advisor + training use 1 GPU
 SOLVER_NUM_GPUS=3    # solver uses 3 GPUs (data parallel)
-MAX_MODEL_LEN=32768
-INFERENCE_MAX_MODEL_LEN=262144
+MAX_MODEL_LEN=262144
 N_SAMPLES_PER_PROMPT=8
 MINI_BATCH_SIZE=8    # must be a multiple of N_SAMPLES_PER_PROMPT
 
@@ -82,7 +79,7 @@ CUDA_VISIBLE_DEVICES="$SOLVER_GPUS" \
     --port "$SOLVER_PORT" \
     --host 127.0.0.1 \
     -dp "$SOLVER_NUM_GPUS" \
-    --max-model-len "$INFERENCE_MAX_MODEL_LEN" \
+    --max-model-len "$MAX_MODEL_LEN" \
     --reasoning-parser qwen3 \
     --enable-auto-tool-choice \
     --tool-call-parser qwen3_coder \
@@ -147,8 +144,7 @@ CUDA_VISIBLE_DEVICES="$ADVISOR_GPUS" \
   generator.sampling_params.min_p=0.0 \
   generator.sampling_params.repetition_penalty=1.1 \
   generator.sampling_params.presence_penalty=0.6 \
-  generator.inference_engine.engine_init_kwargs.chat_template="$CHAT_TEMPLATE_PATH" \
-  generator.inference_engine.engine_init_kwargs.max_model_len=$INFERENCE_MAX_MODEL_LEN \
+  generator.inference_engine.engine_init_kwargs.max_model_len=$MAX_MODEL_LEN \
   generator.inference_engine.engine_init_kwargs.enable_log_requests=true \
   generator.inference_engine.engine_init_kwargs.enable_auto_tool_choice=true \
   generator.inference_engine.engine_init_kwargs.tool_call_parser=qwen3_coder \
