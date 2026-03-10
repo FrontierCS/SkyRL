@@ -63,6 +63,11 @@ USE_KL_LOSS=false
 
 cd "$PROJECT_ROOT/SkyRL"
 
+# Load WANDB_API_KEY (and any other secrets) from .env
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    set -a; source "$PROJECT_ROOT/.env"; set +a
+fi
+
 # scaleevolve lives in the project root — add it to PYTHONPATH so it's importable
 # from within the SkyRL venv
 export PYTHONPATH="$PROJECT_ROOT:$PROJECT_ROOT/vendor/frontier-cs-internal/src:${PYTHONPATH:-}"
@@ -207,5 +212,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   trainer.export_path="$EXPORTS_DIR" \
   trainer.ckpt_path="$CKPTS_DIR" \
   trainer.log_path="$LOG_DIR" \
-  trainer.logger=console \
+  trainer.logger=wandb \
+  trainer.project_name="frontier-cs-evolve" \
+  trainer.run_name="$RUN_NAME" \
   "$@"
