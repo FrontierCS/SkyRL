@@ -40,7 +40,7 @@ SERVED_MODEL_NAME="Qwen3.5-9B"
 # ── Infrastructure ───────────────────────────────────────────────────────────
 # GPU layout: all 4 GPUs handed to SkyRL — it decides the allocation.
 #             solver shares the advisor vLLM endpoint (no separate server)
-ADVISOR_GPUS="0,1,3,6"
+ADVISOR_GPUS="0,2,3,6"
 NUM_GPUS=4           # all GPUs given to SkyRL (vLLM + FSDP training)
 MAX_MODEL_LEN=262144
 # MAX_MODEL_LEN=32000  # For Qwen3
@@ -59,6 +59,11 @@ GRPO_NORM_BY_STD=false
 USE_KL_LOSS=false
 
 cd "$PROJECT_ROOT/SkyRL"
+
+# Load WANDB_API_KEY (and any other secrets) from .env
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    set -a; source "$PROJECT_ROOT/.env"; set +a
+fi
 
 # scaleevolve lives in the project root — add it to PYTHONPATH so it's importable
 # from within the SkyRL venv
@@ -161,5 +166,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   trainer.export_path="$EXPORTS_DIR" \
   trainer.ckpt_path="$CKPTS_DIR" \
   trainer.log_path="$LOG_DIR" \
-  trainer.logger=console \
+  trainer.logger=wandb \
+  trainer.project_name="frontier-cs-evolve" \
+  trainer.run_name="$RUN_NAME" \
   "$@"
