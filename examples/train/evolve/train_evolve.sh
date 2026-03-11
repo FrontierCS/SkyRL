@@ -11,7 +11,10 @@ set -euo pipefail
 
 # Charlie's dump directory
 # DUMP_DIR="/mnt/local_storage"
-DUMP_DIR="/data/qmang"
+# DUMP_DIR="/data/qmang"
+DUMP_DIR="/data/users/zwcolin"
+
+export WANDB_API_KEY="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"
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,29 +32,29 @@ export LOG_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/logs"
 ROLLOUTS_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/rollouts"
 
 # ── Model ────────────────────────────────────────────────────────────────────
-# MODEL_PATH="Qwen/Qwen3-4B"
+MODEL_PATH="Qwen/Qwen3.5-9B"
 # SERVED_MODEL_NAME="Qwen3-4B"
-MODEL_PATH="/data/qmang/hf_cache/hub/models--Qwen--Qwen3.5-9B"
+# MODEL_PATH="$DUMP_DIR/hf_cache/hub/models--Qwen--Qwen3-4B"
 SERVED_MODEL_NAME="Qwen3.5-9B"
 
 # ── Infrastructure ───────────────────────────────────────────────────────────
 # GPU layout: GPU 0 → advisor vLLM + FSDP training (colocated)
 #             GPUs 1-3 → frozen solver vLLM
 ADVISOR_GPUS="0,1"
-SOLVER_GPUS="3,6"
-NUM_GPUS=1           # advisor + training use 1 GPU
-SOLVER_NUM_GPUS=2    # solver uses 2 GPUs (data parallel)
+SOLVER_GPUS="2,3,4,5,6,7"
+NUM_GPUS=2           # advisor + training use 1 GPU
+SOLVER_NUM_GPUS=6    # solver uses 2 GPUs (data parallel)
 MAX_MODEL_LEN=262144
 # MAX_MODEL_LEN=32000  # For Qwen3
-N_SAMPLES_PER_PROMPT=4
-MINI_BATCH_SIZE=1    # must be a multiple of N_SAMPLES_PER_PROMPT
+N_SAMPLES_PER_PROMPT=8
+MINI_BATCH_SIZE=16     # must be a multiple of N_SAMPLES_PER_PROMPT
 
 # ── Solver (frozen) vLLM server ───────────────────────────────────────────────
 SOLVER_PORT=8001
 SOLVER_BASE_URL="http://127.0.0.1:${SOLVER_PORT}/v1"
 
 # ── EvolveAgent config ───────────────────────────────────────────────────────
-NUM_TURNS=2
+NUM_TURNS=3
 MAX_SOLVER_CALLS=5
 MAX_ADVISOR_CONTEXT_ITERS=10
 LANG=cpp
@@ -76,25 +79,42 @@ export PYTHONPATH="$PROJECT_ROOT:$PROJECT_ROOT/vendor/frontier-cs-internal/src:$
 # export SKYRL_PYTHONPATH_EXPORT=1 
 
 # QMANG's environment variables
-export UV_CACHE_DIR="/data/qmang/uv_cache"
-export UV_PROJECT_ENVIRONMENT="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train"
-export HF_HOME="/data/qmang/hf_cache"
-export TRITON_CACHE_DIR="/data/qmang/triton_cache"
-export TORCH_HOME="/data/qmang/torch_cache"
-export FLASHINFER_DISABLE_VERSION_CHECK=1
-export FLASHINFER_WORKSPACE_DIR="/data/qmang/flashinfer_cache"
+# export UV_CACHE_DIR="/data/qmang/uv_cache"
+# export UV_PROJECT_ENVIRONMENT="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train"
+# export HF_HOME="/data/qmang/hf_cache"
+# export TRITON_CACHE_DIR="/data/qmang/triton_cache"
+# export TORCH_HOME="/data/qmang/torch_cache"
+# export FLASHINFER_DISABLE_VERSION_CHECK=1
+# export FLASHINFER_WORKSPACE_DIR="/data/qmang/flashinfer_cache"
 
-/data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python -c "import vllm; print(f'vllm version: {vllm.__version__}')"
+# /data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python -c "import vllm; print(f'vllm version: {vllm.__version__}')"
+
+# zwcolin's environment variables — all caches on fast local /data storage
+export UV_CACHE_DIR="/data/users/zwcolin/.cache/uv"
+export UV_PYTHON_INSTALL_DIR="/data/users/zwcolin/.cache/uv/python"
+export XDG_CACHE_HOME="/data/users/zwcolin/.cache"
+export HF_HOME="/data/users/zwcolin/.cache/huggingface"
+export TRANSFORMERS_CACHE="/data/users/zwcolin/.cache/huggingface/transformers"
+export PIP_CACHE_DIR="/data/users/zwcolin/.cache/pip"
+export TORCH_EXTENSIONS_DIR="/data/users/zwcolin/.cache/torch_extensions"
+export TORCH_HOME="/data/users/zwcolin/.cache/torch"
+export CUDA_CACHE_PATH="/data/users/zwcolin/.cache/cuda"
+export TVM_FFI_CACHE_DIR="/data/users/zwcolin/.cache/tvm-ffi"
+export TRITON_CACHE_DIR="/data/users/zwcolin/.cache/triton"
+export DEEP_GEMM_CACHE_DIR="/data/users/zwcolin/.cache/deep_gemm"
+export FLASHINFER_CACHE_DIR="/data/users/zwcolin/.cache/flashinfer"
+export TMPDIR="/data/users/zwcolin/.cache/tmp"
+export RAY_TMPDIR="/data/users/zwcolin/.cache/tmp"
 
 # ── Start frozen solver vLLM server ──────────────────────────────────────────
 mkdir -p "$LOG_DIR"
 echo "Starting frozen solver vLLM on port ${SOLVER_PORT} (GPUs ${SOLVER_GPUS})..."
 
 # QMANG's vllm serve command
-PREFIX_VLLM_SERVE="env HF_HUB_OFFLINE=1 FLASHINFER_WORKSPACE_DIR=/data/qmang/flashinfer_cache PATH=/data/qmang/.venv/bin:$PATH /data/qmang/.venv/bin/vllm serve"
+# PREFIX_VLLM_SERVE="env HF_HUB_OFFLINE=1 FLASHINFER_WORKSPACE_DIR=/data/qmang/flashinfer_cache PATH=/data/qmang/.venv/bin:$PATH /data/qmang/.venv/bin/vllm serve"
 
-# Charlie's vllm serve command
-# PREFIX_VLLM_SERVE="uv run --isolated --extra fsdp vllm serve"
+# Charlie's and Colin's vllm serve command
+PREFIX_VLLM_SERVE="uv run --isolated --extra fsdp vllm serve"
 
 # NOTE(Charlie): Remove --language-model-only \ for Qwen3 / lower vllm version
 CUDA_VISIBLE_DEVICES="$SOLVER_GPUS" $PREFIX_VLLM_SERVE \
@@ -131,9 +151,9 @@ for i in $(seq 1 180); do
 done
 
 # QMANG's python command
-PREFIX_SKYRL_PYTHON="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python"
-# Charlie's python command
-# PREFIX_SKYRL_PYTHON="uv run --isolated --extra fsdp --extra frontier-cs python"
+# PREFIX_SKYRL_PYTHON="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python"
+# Charlie's and Colin's python command
+PREFIX_SKYRL_PYTHON="uv run --isolated --extra fsdp --extra frontier-cs python"
 
 # NOTE(Charlie): Remove `fsdp_config.wrap_policy.transformer_layer_cls_to_wrap` for Qwen3
 # it is for Qwen3.5
@@ -182,6 +202,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   generator.inference_engine.engine_init_kwargs.tool_call_parser=qwen3_coder \
   generator.inference_engine.engine_init_kwargs.reasoning_parser=qwen3 \
   generator.inference_engine.engine_init_kwargs.attention_backend=FLASH_ATTN \
+  generator.inference_engine.engine_init_kwargs.language_model_only=true \
   generator.problem_id=0 \
   generator.snapshots_root="$SNAPSHOTS_ROOT" \
   generator.solution_pool_path="$SOLUTION_POOL_PATH" \
