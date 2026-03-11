@@ -37,6 +37,8 @@ mp.set_start_method("spawn", force=True)
 config_dir = str(Path(__file__).parent.parent / "config")
 __all__ = ["BasePPOExp", "config_dir"]
 
+import fla
+print(f"FLA HERE: {fla.__file__}")
 
 def create_ray_wrapped_inference_engines_from_config(
     cfg: SkyRLTrainConfig, colocate_pg, tokenizer: PreTrainedTokenizerBase
