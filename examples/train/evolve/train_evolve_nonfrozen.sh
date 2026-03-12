@@ -32,20 +32,19 @@ export LOG_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/logs"
 ROLLOUTS_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/rollouts"
 
 # ── Model ────────────────────────────────────────────────────────────────────
-# MODEL_PATH="Qwen/Qwen3-4B"
-# SERVED_MODEL_NAME="Qwen3-4B"
-MODEL_PATH="/data/qmang/hf_cache/hub/models--Qwen--Qwen3.5-9B"
+MODEL_PATH="Qwen/Qwen3.5-9B"
+# MODEL_PATH="/data/qmang/hf_cache/hub/models--Qwen--Qwen3.5-9B"
 SERVED_MODEL_NAME="Qwen3.5-9B"
 
 # ── Infrastructure ───────────────────────────────────────────────────────────
 # GPU layout: all 4 GPUs handed to SkyRL — it decides the allocation.
 #             solver shares the advisor vLLM endpoint (no separate server)
-ADVISOR_GPUS="0,2,3,6"
-NUM_GPUS=4           # all GPUs given to SkyRL (vLLM + FSDP training)
+ADVISOR_GPUS="0,1,2,3,4,5"
+NUM_GPUS=6           # all GPUs given to SkyRL (vLLM + FSDP training)
 MAX_MODEL_LEN=262144
 # MAX_MODEL_LEN=32000  # For Qwen3
-N_SAMPLES_PER_PROMPT=4
-MINI_BATCH_SIZE=1    # must be a multiple of N_SAMPLES_PER_PROMPT
+N_SAMPLES_PER_PROMPT=8
+MINI_BATCH_SIZE=8    # must be a multiple of N_SAMPLES_PER_PROMPT
 
 # ── EvolveAgent config ───────────────────────────────────────────────────────
 NUM_TURNS=2
@@ -73,22 +72,22 @@ export PYTHONPATH="$PROJECT_ROOT:$PROJECT_ROOT/vendor/frontier-cs-internal/src:$
 # export SKYRL_PYTHONPATH_EXPORT=1
 
 # QMANG's environment variables
-export UV_CACHE_DIR="/data/qmang/uv_cache"
-export UV_PROJECT_ENVIRONMENT="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train"
-export HF_HOME="/data/qmang/hf_cache"
-export TRITON_CACHE_DIR="/data/qmang/triton_cache"
-export TORCH_HOME="/data/qmang/torch_cache"
-export FLASHINFER_DISABLE_VERSION_CHECK=1
-export FLASHINFER_WORKSPACE_DIR="/data/qmang/flashinfer_cache"
+# export UV_CACHE_DIR="/data/qmang/uv_cache"
+# export UV_PROJECT_ENVIRONMENT="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train"
+# export HF_HOME="/data/qmang/hf_cache"
+# export TRITON_CACHE_DIR="/data/qmang/triton_cache"
+# export TORCH_HOME="/data/qmang/torch_cache"
+# export FLASHINFER_DISABLE_VERSION_CHECK=1
+# export FLASHINFER_WORKSPACE_DIR="/data/qmang/flashinfer_cache"
 
-/data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python -c "import vllm; print(f'vllm version: {vllm.__version__}')"
+# /data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python -c "import vllm; print(f'vllm version: {vllm.__version__}')"
 
 mkdir -p "$LOG_DIR"
 
 # QMANG's python command
-PREFIX_SKYRL_PYTHON="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python"
-# Charlie's python command
-# PREFIX_SKYRL_PYTHON="uv run --isolated --extra fsdp --extra frontier-cs python"
+# PREFIX_SKYRL_PYTHON="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python"
+# Charlie's / Colin's python command
+PREFIX_SKYRL_PYTHON="uv run --isolated --extra fsdp --extra frontier-cs python"
 
 # NOTE(Charlie): Remove `fsdp_config.wrap_policy.transformer_layer_cls_to_wrap` for Qwen3
 # it is for Qwen3.5
@@ -137,6 +136,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   generator.inference_engine.engine_init_kwargs.tool_call_parser=qwen3_coder \
   generator.inference_engine.engine_init_kwargs.reasoning_parser=qwen3 \
   generator.inference_engine.engine_init_kwargs.attention_backend=FLASH_ATTN \
+  generator.inference_engine.engine_init_kwargs.language_model_only=true \
   generator.problem_id=0 \
   generator.snapshots_root="$SNAPSHOTS_ROOT" \
   generator.solution_pool_path="$SOLUTION_POOL_PATH" \
