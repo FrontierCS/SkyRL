@@ -7,26 +7,36 @@ For details, see https://docs.skyrl.ai/docs/tutorials/skyrl_gym_generator
 
 import asyncio
 import copy
-from uuid import uuid4
-from dataclasses import asdict
-import skyrl_gym
-from typing import List, Dict, Any, Optional, Union, Tuple
 from concurrent.futures import ThreadPoolExecutor
-from tqdm.asyncio import tqdm
-from dataclasses import dataclass
-from loguru import logger
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List, Optional, Tuple, Union
+from uuid import uuid4
 
+from loguru import logger
+from tqdm.asyncio import tqdm
+
+import skyrl_gym
+from skyrl.backends.skyrl_train.inference_engines.base import (
+    ConversationType,
+    InferenceEngineInput,
+)
+from skyrl.backends.skyrl_train.inference_engines.inference_engine_client import (
+    InferenceEngineClient,
+)
 from skyrl.train.config import GeneratorConfig, SkyRLGymConfig
-from skyrl.train.generators.base import GeneratorInterface, GeneratorInput, GeneratorOutput, TrajectoryID
-from skyrl.backends.skyrl_train.inference_engines.inference_engine_client import InferenceEngineClient
-from skyrl.backends.skyrl_train.inference_engines.base import InferenceEngineInput, ConversationType
-from skyrl_gym.envs.base_text_env import BaseTextEnvStepOutput
+from skyrl.train.generators.base import (
+    GeneratorInput,
+    GeneratorInterface,
+    GeneratorOutput,
+    TrajectoryID,
+)
 from skyrl.train.generators.utils import (
+    apply_overlong_filtering,
     get_custom_chat_template,
     get_generation_prompt_ids,
-    apply_overlong_filtering,
     get_rollout_metrics,
 )
+from skyrl_gym.envs.base_text_env import BaseTextEnvStepOutput
 
 
 @dataclass
@@ -143,6 +153,7 @@ class SkyRLGymGenerator(GeneratorInterface):
             self.base_conversation,
             add_generation_prompt=False,
             tokenize=True,
+            return_dict=False,
             **self.generator_cfg.chat_template_kwargs,
         )
         # We remove tokens after the last EOS token so that it can be captured in `observation_ids`.
@@ -243,6 +254,7 @@ class SkyRLGymGenerator(GeneratorInterface):
             add_generation_prompt=not retokenize_chat_history,
             chat_template=self.custom_chat_template if retokenize_chat_history else None,
             tokenize=True,
+            return_dict=False,
             **self.generator_cfg.chat_template_kwargs,
         )
 
@@ -287,6 +299,7 @@ class SkyRLGymGenerator(GeneratorInterface):
                     chat_template=self.custom_chat_template if retokenize_chat_history else None,
                     add_generation_prompt=True,
                     tokenize=True,
+                    return_dict=False,
                     **self.generator_cfg.chat_template_kwargs,
                 )
                 agent_loop_state.loss_mask = []
@@ -524,6 +537,7 @@ class SkyRLGymGenerator(GeneratorInterface):
                     [*self.base_conversation, *new_obs],
                     add_generation_prompt=not is_done,
                     tokenize=True,
+                    return_dict=False,
                     **self.generator_cfg.chat_template_kwargs,
                 )[len(self.base_conversation_token_ids) :]
             elif not is_done:
@@ -604,6 +618,7 @@ class SkyRLGymGenerator(GeneratorInterface):
             init_prompts,
             add_generation_prompt=True,
             tokenize=True,
+            return_dict=False,
         )
         engine_input = InferenceEngineInput(prompt_token_ids=prompt_token_ids, sampling_params=sampling_params)
         engine_output = await self.inference_engine_client.generate(engine_input)

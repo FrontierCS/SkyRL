@@ -1,20 +1,22 @@
 import copy
 import os
-import torch
-from typing import List, Tuple, Union, Optional, Dict, Any
 from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import numpy as np
-from skyrl.train.generators.base import (
-    GeneratorOutput,
-    GeneratorInput,
-    TrajectoryID,
-    BatchMetadata,
-    TrainingPhase,
-    MetricsOutput,
-)
+import torch
+from loguru import logger
+
 from skyrl.backends.skyrl_train.inference_engines.base import ConversationType
 from skyrl.train.config import ChatTemplateConfig
-from loguru import logger
+from skyrl.train.generators.base import (
+    BatchMetadata,
+    GeneratorInput,
+    GeneratorOutput,
+    MetricsOutput,
+    TrainingPhase,
+    TrajectoryID,
+)
 from skyrl_gym.metrics import aggregate_for_environment
 
 
@@ -157,10 +159,10 @@ def get_generation_prompt_ids(tokenizer, chat_template: Optional[str] = None) ->
         List[int]: Token IDs for the generation prompt (e.g., "<|im_start|>assistant\n" for Qwen).
     """
     empty_user = tokenizer.apply_chat_template(
-        [{"role": "user", "content": ""}], tokenize=True, chat_template=chat_template
+        [{"role": "user", "content": ""}], tokenize=True, return_dict=False, chat_template=chat_template
     )
     empty_user_with_generation_prompt = tokenizer.apply_chat_template(
-        [{"role": "user", "content": ""}], add_generation_prompt=True, tokenize=True, chat_template=chat_template
+        [{"role": "user", "content": ""}], add_generation_prompt=True, tokenize=True, return_dict=False, chat_template=chat_template
     )
 
     generation_prompt_ids = empty_user_with_generation_prompt[len(empty_user) :]
@@ -448,6 +450,7 @@ def encode_messages_subset(messages: ConversationType, tokenizer, chat_template:
         base_conversation,
         add_generation_prompt=False,
         tokenize=True,
+        return_dict=False,
         chat_template=chat_template,
     )
 
@@ -456,6 +459,7 @@ def encode_messages_subset(messages: ConversationType, tokenizer, chat_template:
         full_conversation,
         add_generation_prompt=False,
         tokenize=True,
+        return_dict=False,
         chat_template=chat_template,
     )
     conversation_token_ids = full_conversation_token_ids[len(base_conversation_token_ids) :]
