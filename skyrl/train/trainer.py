@@ -156,6 +156,8 @@ class RayPPOTrainer:
         Returns:
             A dictionary of evaluation metrics.
         """
+        if self.eval_dataloader is None:
+            return {}
         if self.cfg.generator.step_wise_trajectories:
             eval_metrics = await evaluate_step_wise(
                 eval_dataloader=self.eval_dataloader,

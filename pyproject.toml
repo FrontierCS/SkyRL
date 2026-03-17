@@ -203,6 +203,9 @@ required-environments = [
 
 constraint-dependencies = [
     "flashinfer-jit-cache==0.6.4",
+    # Pin pyarrow to avoid jemalloc background thread segfault in
+    # multiprocessing.spawn child processes (libarrow.so bundled jemalloc).
+    "pyarrow>=20,<22",
 ]
 # each backend should have separate dependencies that can potentially clash
 # megatron also clashes with the jax dependency from gpu and tpu extras
