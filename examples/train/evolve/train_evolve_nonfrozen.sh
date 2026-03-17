@@ -12,9 +12,7 @@
 #   bash SkyRL/examples/train/evolve/train_evolve_nonfrozen.sh
 set -euo pipefail
 
-# Charlie's dump directory
-# DUMP_DIR="/mnt/local_storage"
-DUMP_DIR="/data/qmang"
+DUMP_DIR="/data"
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,18 +37,23 @@ SERVED_MODEL_NAME="Qwen3.5-9B"
 # ── Infrastructure ───────────────────────────────────────────────────────────
 # GPU layout: all 4 GPUs handed to SkyRL — it decides the allocation.
 #             solver shares the advisor vLLM endpoint (no separate server)
-ADVISOR_GPUS="0,1,2,3,4,5"
-NUM_GPUS=6           # all GPUs given to SkyRL (vLLM + FSDP training)
+ADVISOR_GPUS="0,1,2,3,4,5,6,7"
+NUM_GPUS=8           # all GPUs given to SkyRL (vLLM + FSDP training)
+TP_SIZE=1            # tensor parallel across 2 GPUs (H100 80GB needs TP for large context)
+NUM_ENGINES=8        # 8 GPUs / TP=2 = 4 engines
 MAX_MODEL_LEN=262144
 # MAX_MODEL_LEN=32000  # For Qwen3
+TRAIN_BATCH_SIZE=8
 N_SAMPLES_PER_PROMPT=8
-MINI_BATCH_SIZE=8    # must be a multiple of N_SAMPLES_PER_PROMPT
+MINI_BATCH_SIZE=1    # must be a multiple of N_SAMPLES_PER_PROMPT
 
 # ── EvolveAgent config ───────────────────────────────────────────────────────
-NUM_TURNS=2
+NUM_TURNS=1
 MAX_SOLVER_CALLS=5
 MAX_ADVISOR_CONTEXT_ITERS=10
 LANG=cpp
+SOLVER_MODEL="gpt-5.2"
+SOLVER_REASONING_EFFORT="low"
 
 # ── Dr. GRPO ─────────────────────────────────────────────────────────────────
 LOSS_REDUCTION="seq_mean_token_sum_norm"
@@ -68,19 +71,31 @@ fi
 # from within the SkyRL venv
 export PYTHONPATH="$PROJECT_ROOT:$PROJECT_ROOT/vendor/frontier-cs-internal/src:${PYTHONPATH:-}"
 
-# Export the PYTHONPATH to the SkyRL venv (needed by Charlie, not QMANG)
-# export SKYRL_PYTHONPATH_EXPORT=1
-
-# QMANG's environment variables
-# export UV_CACHE_DIR="/data/qmang/uv_cache"
-# export UV_PROJECT_ENVIRONMENT="/data/qmang/Frontier-CS-Evolve-venv/skyrl-train"
-# export HF_HOME="/data/qmang/hf_cache"
-# export TRITON_CACHE_DIR="/data/qmang/triton_cache"
-# export TORCH_HOME="/data/qmang/torch_cache"
-# export FLASHINFER_DISABLE_VERSION_CHECK=1
-# export FLASHINFER_WORKSPACE_DIR="/data/qmang/flashinfer_cache"
-
-# /data/qmang/Frontier-CS-Evolve-venv/skyrl-train/bin/python -c "import vllm; print(f'vllm version: {vllm.__version__}')"
+# Cache directories on /data (large NVMe)
+export UV_CACHE_DIR="/data/cache/uv"
+export HF_HOME="/data/cache/huggingface"
+# Use locally-cached model weights — avoid unauthenticated HF Hub API calls
+# that fail with "file not found" for sharded models.
+export HF_HUB_OFFLINE=1
+export TRITON_CACHE_DIR="/data/cache/triton"
+export TORCH_HOME="/data/cache/torch"
+export FLASHINFER_DISABLE_VERSION_CHECK=1
+export FLASHINFER_WORKSPACE_DIR="/data/cache/flashinfer"
+# Pre-set VLLM_USE_V1 so that SkyRL's prepare_runtime_environment() does NOT
+# set VLLM_ENABLE_V1_MULTIPROCESSING=0, which breaks the async engine core
+# process spawning inside Ray actors with TP > 1.
+export VLLM_USE_V1=1
+# Dump infra logs to stdout for debugging (skip log redirection in actors)
+export SKYRL_DUMP_INFRA_LOG_TO_STDOUT=1
+# Point Ray temp dir to /data to avoid filling up root filesystem
+export RAY_TMPDIR="/data/ray_tmp"
+# Disable PyArrow's bundled jemalloc background thread — it segfaults
+# (SIGSEGV at 0x350 in jemalloc_bg_thd) in multiprocessing.spawn child
+# processes when running inside Ray actors.  PyArrow's jemalloc uses the
+# symbol prefix "je_arrow_", so the config env var is JE_ARROW_MALLOC_CONF.
+export JE_ARROW_MALLOC_CONF="background_thread:false"
+# Also tell Arrow to prefer the system allocator (belt-and-suspenders).
+export ARROW_DEFAULT_MEMORY_POOL=system
 
 mkdir -p "$LOG_DIR"
 
@@ -99,8 +114,8 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   trainer.policy.model.path="$MODEL_PATH" \
   generator.inference_engine.model_dtype=bfloat16 \
   generator.inference_engine.served_model_name="$SERVED_MODEL_NAME" \
-  generator.inference_engine.num_engines=$NUM_GPUS \
-  generator.inference_engine.tensor_parallel_size=1 \
+  generator.inference_engine.num_engines=$NUM_ENGINES \
+  generator.inference_engine.tensor_parallel_size=$TP_SIZE \
   generator.inference_engine.pipeline_parallel_size=1 \
   generator.inference_engine.expert_parallel_size=1 \
   generator.inference_engine.data_parallel_size=1 \
@@ -112,7 +127,8 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   generator.inference_engine.weight_sync_backend=nccl \
   generator.inference_engine.async_engine=true \
   generator.inference_engine.gpu_memory_utilization=0.8 \
-  generator.inference_engine.vllm_v1_disable_multiproc=true \
+  generator.inference_engine.distributed_executor_backend=mp \
+  generator.inference_engine.vllm_v1_disable_multiproc=false \
   generator.inference_engine.enable_prefix_caching=true \
   generator.inference_engine.enable_chunked_prefill=true \
   generator.inference_engine.max_num_batched_tokens=8192 \
@@ -144,6 +160,8 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   generator.max_solver_calls=$MAX_SOLVER_CALLS \
   generator.max_advisor_context_iters=$MAX_ADVISOR_CONTEXT_ITERS \
   generator.lang=$LANG \
+  generator.solver_model="$SOLVER_MODEL" \
+  generator.solver_reasoning_effort="$SOLVER_REASONING_EFFORT" \
   generator.max_seq_len=$MAX_MODEL_LEN \
   generator.rl_rollouts_dir="$ROLLOUTS_DIR" \
   trainer.algorithm.advantage_estimator=grpo \
@@ -160,7 +178,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   trainer.placement.ref_num_nodes=1 \
   trainer.placement.policy_num_gpus_per_node=$NUM_GPUS \
   trainer.placement.ref_num_gpus_per_node=$NUM_GPUS \
-  trainer.train_batch_size=$MINI_BATCH_SIZE \
+  trainer.train_batch_size=$TRAIN_BATCH_SIZE \
   trainer.policy_mini_batch_size=$MINI_BATCH_SIZE \
   trainer.eval_before_train=false \
   trainer.export_path="$EXPORTS_DIR" \

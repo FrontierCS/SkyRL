@@ -1,5 +1,13 @@
 import io
+import os
 from typing import TYPE_CHECKING
+
+# Enable expandable segments to avoid CUDA memory fragmentation during FSDP
+# training. This must be set before CUDA is initialized. It is safe here
+# because FSDP workers run in their own Ray-actor processes, separate from
+# the vLLM inference-engine actors whose CuMemAllocator is incompatible
+# with expandable segments.
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 import ray
 import torch

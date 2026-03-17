@@ -392,6 +392,19 @@ class InferenceEngineClient(InferenceEngineInterface):
                 max_key=max_key,
             )
 
+            # 1.1.1. None means thinking-only tokens were generated but no
+            # visible content — reset state and retry the original request.
+            if cur_request_json is None:
+                logger.warning(
+                    "Retry with completion_tokens=%d but empty content "
+                    "(likely thinking-only tokens). Resetting and retrying from scratch.",
+                    accum.completion_tokens,
+                )
+                accum = AccumulatedResponse()
+                base_response = None
+                response_role = None
+                cur_request_json = original_request_json.copy()
+
             # 1.2. Send the request.
             logger.debug(f"/chat/completions request sent (including potential retries): {cur_request_json}")
             partial_response = await self.engines[engine_idx].chat_completion(
@@ -717,6 +730,7 @@ class InferenceEngineClient(InferenceEngineInterface):
 @dataclass
 class AccumulatedResponse:
     content: str = ""
+    reasoning_content: str = ""
     logprobs_content: List[Any] = field(default_factory=list)
     token_ids: List[int] = field(default_factory=list)
     completion_tokens: int = 0
@@ -728,17 +742,26 @@ def _prepare_retry_request(
     response_role: Optional[str],
     orig_max_tokens: Optional[int],
     max_key: Optional[str],
-) -> Dict[str, Any]:
+) -> Optional[Dict[str, Any]]:
     """Build the per-iteration request payload.
 
     If no tokens have been generated yet, resend the original request unchanged.
     Otherwise, build a continuation request that appends the accumulated content
     and adjusts remaining max tokens if present.
+
+    When completion_tokens > 0 but content is empty (e.g. the model only produced
+    hidden thinking tokens before being aborted), we cannot build a valid
+    continuation request. Reset the accumulator and restart from scratch.
     """
     if accum.completion_tokens == 0:
         return original_request_json.copy()
 
-    assert accum.content != "", "accum.content must be non-empty for a continuation request"
+    if accum.content == "":
+        # Thinking-only tokens (e.g. Qwen3.5 <think> block) were generated
+        # but no visible content yet. Cannot build a valid continuation
+        # request. Signal the caller to reset state and retry from scratch
+        # by returning None.
+        return None
     assert response_role is not None, "response_role must be set for a continuation request"
 
     cur_request_json = original_request_json.copy()
@@ -770,6 +793,7 @@ def _parse_partial_response_and_inplace_update_accum(
     finish_reason: str = choice["finish_reason"]
     stop_reason: Optional[str] = choice.get("stop_reason", None)
     new_content: str = choice["message"]["content"] or ""
+    new_reasoning: str = choice["message"].get("reasoning_content") or ""
 
     assert (
         partial_response["usage"] is not None and partial_response["usage"]["completion_tokens"] is not None
@@ -785,6 +809,7 @@ def _parse_partial_response_and_inplace_update_accum(
     aborted_without_generating = finish_reason == "abort" and new_completion_tokens == 0
     if not aborted_without_generating:
         accum.content += new_content
+        accum.reasoning_content += new_reasoning
         logprobs = choice.get("logprobs")
         if logprobs is not None and logprobs.get("content") is not None:
             accum.logprobs_content.extend(logprobs["content"])
@@ -814,9 +839,11 @@ def _build_final_response(
     final_usage["total_tokens"] = prompt_tokens + accum.completion_tokens
     final_response["usage"] = final_usage
 
-    # Set accumulated content, logprobs, token_ids.
+    # Set accumulated content, reasoning_content, logprobs, token_ids.
     final_choice = final_response["choices"][0]
     final_choice["message"]["content"] = accum.content
+    if accum.reasoning_content:
+        final_choice["message"]["reasoning_content"] = accum.reasoning_content
     if final_choice.get("logprobs", None) is not None:
         final_choice["logprobs"]["content"] = accum.logprobs_content
     if final_choice.get("token_ids", None) is not None:
