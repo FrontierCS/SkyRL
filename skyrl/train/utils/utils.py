@@ -594,11 +594,6 @@ def prepare_runtime_environment(cfg: SkyRLTrainConfig) -> dict[str, str]:
             # https://github.com/NVIDIA/TransformerEngine/blob/release_v2.5/transformer_engine/pytorch/attention/dot_product_attention/utils.py#L916
             env_vars["NVTE_FUSED_ATTN"] = "0"
 
-    # Disable PyArrow's bundled jemalloc background thread — it segfaults
-    # in multiprocessing.spawn child processes inside Ray actors.
-    env_vars["JE_ARROW_MALLOC_CONF"] = "background_thread:false"
-    env_vars["ARROW_DEFAULT_MEMORY_POOL"] = "system"
-
     if cfg.generator.inference_engine.backend == "vllm":
         env_vars["VLLM_ALLOW_RUNTIME_LORA_UPDATING"] = "true"
 
