@@ -160,6 +160,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   generator.solver_model="$SOLVER_MODEL" \
   generator.solver_reasoning_effort="$SOLVER_REASONING_EFFORT" \
   generator.max_seq_len=$MAX_TRAIN_SEQ_LEN \
+  generator.step_wise_trajectories=true \
   generator.rl_rollouts_dir="$ROLLOUTS_DIR" \
   trainer.algorithm.advantage_estimator=grpo \
   trainer.algorithm.loss_reduction=$LOSS_REDUCTION \
