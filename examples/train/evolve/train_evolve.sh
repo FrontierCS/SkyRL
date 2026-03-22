@@ -23,10 +23,10 @@ SOLUTION_POOL_PATH="$PROJECT_ROOT/data/solution_pool_p0.json"
 SNAPSHOTS_ROOT="$PROJECT_ROOT/snapshots"
 
 RUN_NAME="evolve_p0_$(date +%Y%m%d_%H%M%S)"
-CKPTS_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/ckpts"
+CKPTS_DIR="/data_pool/rl_ckpts/$RUN_NAME"
 EXPORTS_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/exports"
 export LOG_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/logs"
-ROLLOUTS_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/rollouts"
+ROLLOUTS_DIR="/data_pool/rl_rollouts/$RUN_NAME"
 
 # ── Model ────────────────────────────────────────────────────────────────────
 MODEL_PATH="Qwen/Qwen3.5-9B"
@@ -45,13 +45,13 @@ TRAIN_BATCH_SIZE=8
 MINI_BATCH_SIZE=2
 
 # ── Solver (frozen GPT-5 via OpenAI API) ────────────────────────────────────
-SOLVER_MODEL="gpt-5"
+SOLVER_MODEL="gpt-5.4"
 SOLVER_REASONING_EFFORT="low"
 
 # ── EvolveAgent config ───────────────────────────────────────────────────────
 NUM_TURNS=1
 MAX_SOLVER_CALLS=5
-MAX_ADVISOR_CONTEXT_ITERS=1
+MAX_ADVISOR_CONTEXT_ITERS=3
 LANG=cpp
 
 # ── Dr. GRPO ─────────────────────────────────────────────────────────────────x

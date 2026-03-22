@@ -251,10 +251,15 @@ class RayPPOTrainer:
                         generator_output = self.postprocess_generator_output(generator_output, uids)
 
                     # 2. print example just for debugging
+                    if generator_output.get("prompt_token_ids") and generator_output["prompt_token_ids"][0]:
+                        # Step-wise: decode actual prompt_token_ids to show the real prompt
+                        prompt_vis = self.tokenizer.decode(generator_output["prompt_token_ids"][0], skip_special_tokens=False)
+                    else:
+                        prompt_vis = str(generator_input["prompts"][0])
                     vis = self.tokenizer.decode(generator_output["response_ids"][0])
                     log_example(
                         logger,
-                        prompt=generator_input["prompts"][0],
+                        prompt=prompt_vis,
                         response=vis,
                         reward=generator_output["rewards"][0],
                     )
