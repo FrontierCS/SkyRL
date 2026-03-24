@@ -11,7 +11,8 @@
 #   bash SkyRL/examples/train/evolve/train_evolve.sh
 set -euo pipefail
 
-DUMP_DIR="/data"
+# DUMP_DIR="/data"
+DUMP_DIR="/data_pool"
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,10 +24,10 @@ SOLUTION_POOL_PATH="$PROJECT_ROOT/data/solution_pool_p0.json"
 SNAPSHOTS_ROOT="$PROJECT_ROOT/snapshots"
 
 RUN_NAME="evolve_p0_$(date +%Y%m%d_%H%M%S)"
-CKPTS_DIR="/data_pool/rl_ckpts/$RUN_NAME"
-EXPORTS_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/exports"
-export LOG_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/logs"
-ROLLOUTS_DIR="/data_pool/rl_rollouts/$RUN_NAME"
+CKPTS_DIR="$DUMP_DIR/rl_ckpts/$RUN_NAME"
+EXPORTS_DIR="$DUMP_DIR/outputs/$RUN_NAME/exports"
+export LOG_DIR="$DUMP_DIR/outputs/$RUN_NAME/logs"
+ROLLOUTS_DIR="$DUMP_DIR/outputs/$RUN_NAME/rollouts"
 
 # ── Model ────────────────────────────────────────────────────────────────────
 MODEL_PATH="Qwen/Qwen3.5-9B"
@@ -87,7 +88,7 @@ export VLLM_USE_V1=1
 # Dump infra logs to stdout for debugging (skip log redirection in actors)
 export SKYRL_DUMP_INFRA_LOG_TO_STDOUT=1
 # Point Ray temp dir to /data to avoid filling up root filesystem
-export RAY_TMPDIR="/data/ray_tmp"
+export RAY_TMPDIR="$DUMP_DIR/ray_tmp"
 # Disable PyArrow's bundled jemalloc background thread — it segfaults
 # (SIGSEGV at 0x350 in jemalloc_bg_thd) in multiprocessing.spawn child
 # processes when running inside Ray actors.  PyArrow's jemalloc uses the
