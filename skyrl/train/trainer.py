@@ -251,13 +251,31 @@ class RayPPOTrainer:
                         generator_output = self.postprocess_generator_output(generator_output, uids)
 
                     # 2. print example just for debugging
-                    vis = self.tokenizer.decode(generator_output["response_ids"][0])
-                    log_example(
-                        logger,
-                        prompt=generator_input["prompts"][0],
-                        response=vis,
-                        reward=generator_output["rewards"][0],
-                    )
+                    # In step-wise mode, log all steps of the first trajectory
+                    is_last_step = generator_output.get("is_last_step")
+                    if is_last_step:
+                        # Find how many steps belong to the first trajectory
+                        n_steps_first = 1
+                        for k in range(1, len(is_last_step)):
+                            if is_last_step[k - 1]:
+                                break
+                            n_steps_first += 1
+                        for step_idx in range(n_steps_first):
+                            prompt_ids = generator_output.get("prompt_token_ids", [[]])[step_idx]
+                            resp_ids = generator_output["response_ids"][step_idx]
+                            reward = generator_output["rewards"][step_idx]
+                            prompt_vis = self.tokenizer.decode(prompt_ids, skip_special_tokens=False) if prompt_ids else str(generator_input["prompts"][0])
+                            resp_vis = self.tokenizer.decode(resp_ids)
+                            logger.info(f"--- Step {step_idx + 1}/{n_steps_first} (is_last={is_last_step[step_idx]}) ---")
+                            log_example(logger, prompt=prompt_vis, response=resp_vis, reward=reward)
+                    else:
+                        vis = self.tokenizer.decode(generator_output["response_ids"][0])
+                        log_example(
+                            logger,
+                            prompt=str(generator_input["prompts"][0]),
+                            response=vis,
+                            reward=generator_output["rewards"][0],
+                        )
 
                     # 3. Convert GeneratorOutput to TrainingInputBatch
                     with Timer("convert_to_training_input", self.all_timings):

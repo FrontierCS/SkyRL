@@ -11,7 +11,8 @@
 #   bash SkyRL/examples/train/evolve/train_evolve.sh
 set -euo pipefail
 
-DUMP_DIR="/data"
+# DUMP_DIR="/data"
+DUMP_DIR="/data_pool"
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,10 +24,10 @@ SOLUTION_POOL_PATH="$PROJECT_ROOT/data/solution_pool_p0.json"
 SNAPSHOTS_ROOT="$PROJECT_ROOT/snapshots"
 
 RUN_NAME="evolve_p0_$(date +%Y%m%d_%H%M%S)"
-CKPTS_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/ckpts"
-EXPORTS_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/exports"
-export LOG_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/logs"
-ROLLOUTS_DIR="$DUMP_DIR/outputs/rl_training/$RUN_NAME/rollouts"
+CKPTS_DIR="$DUMP_DIR/rl_ckpts/$RUN_NAME"
+EXPORTS_DIR="$DUMP_DIR/outputs/$RUN_NAME/exports"
+export LOG_DIR="$DUMP_DIR/outputs/$RUN_NAME/logs"
+ROLLOUTS_DIR="$DUMP_DIR/outputs/$RUN_NAME/rollouts"
 
 # ── Model ────────────────────────────────────────────────────────────────────
 MODEL_PATH="Qwen/Qwen3.5-9B"
@@ -45,13 +46,13 @@ TRAIN_BATCH_SIZE=8
 MINI_BATCH_SIZE=2
 
 # ── Solver (frozen GPT-5 via OpenAI API) ────────────────────────────────────
-SOLVER_MODEL="gpt-5"
+SOLVER_MODEL="gpt-5.4"
 SOLVER_REASONING_EFFORT="low"
 
 # ── EvolveAgent config ───────────────────────────────────────────────────────
 NUM_TURNS=1
 MAX_SOLVER_CALLS=5
-MAX_ADVISOR_CONTEXT_ITERS=1
+MAX_ADVISOR_CONTEXT_ITERS=3
 LANG=cpp
 
 # ── Dr. GRPO ─────────────────────────────────────────────────────────────────x
@@ -87,7 +88,7 @@ export VLLM_USE_V1=1
 # Dump infra logs to stdout for debugging (skip log redirection in actors)
 export SKYRL_DUMP_INFRA_LOG_TO_STDOUT=1
 # Point Ray temp dir to /data to avoid filling up root filesystem
-export RAY_TMPDIR="/data/ray_tmp"
+export RAY_TMPDIR="$DUMP_DIR/ray_tmp"
 # Disable PyArrow's bundled jemalloc background thread — it segfaults
 # (SIGSEGV at 0x350 in jemalloc_bg_thd) in multiprocessing.spawn child
 # processes when running inside Ray actors.  PyArrow's jemalloc uses the
@@ -160,6 +161,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   generator.solver_model="$SOLVER_MODEL" \
   generator.solver_reasoning_effort="$SOLVER_REASONING_EFFORT" \
   generator.max_seq_len=$MAX_TRAIN_SEQ_LEN \
+  generator.step_wise_trajectories=true \
   generator.rl_rollouts_dir="$ROLLOUTS_DIR" \
   trainer.algorithm.advantage_estimator=grpo \
   trainer.algorithm.loss_reduction=$LOSS_REDUCTION \
