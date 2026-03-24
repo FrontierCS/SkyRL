@@ -56,6 +56,9 @@ MAX_ADVISOR_CONTEXT_ITERS=3
 MAX_ADVISOR_CODE_LOOKUPS=1
 LANG=cpp
 
+# ── Checkpointing ─────────────────────────────────────────────────────────────
+CKPT_INTERVAL=2
+
 # ── Dr. GRPO ─────────────────────────────────────────────────────────────────x
 LOSS_REDUCTION="seq_mean_token_sum_norm"
 GRPO_NORM_BY_STD=false
@@ -187,6 +190,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   trainer.micro_train_batch_size_per_gpu=1 \
   trainer.micro_forward_batch_size_per_gpu=1 \
   trainer.use_sample_packing=true \
+  trainer.ckpt_interval=$CKPT_INTERVAL \
   trainer.eval_before_train=false \
   trainer.export_path="$EXPORTS_DIR" \
   trainer.ckpt_path="$CKPTS_DIR" \
