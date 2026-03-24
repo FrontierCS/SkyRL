@@ -40,25 +40,31 @@ NUM_GPUS=8
 TP_SIZE=1          # tensor parallel across 1 GPU
 NUM_ENGINES=8      # 8 GPUs / TP=1 = 8 engines
 MAX_TRAIN_SEQ_LEN=43000  # training sequence budget — bounds memory; 99%+ sequences are under 30K
-LOSS_NORM_SEQ_LEN=262144 # loss normalization constant for seq_mean_token_sum_norm (not memory-related)
 N_SAMPLES_PER_PROMPT=8
-TRAIN_BATCH_SIZE=8
-MINI_BATCH_SIZE=2
+
+TRAIN_BATCH_SIZE=32
+MINI_BATCH_SIZE=32
 
 # ── Solver (frozen GPT-5 via OpenAI API) ────────────────────────────────────
 SOLVER_MODEL="gpt-5.4"
 SOLVER_REASONING_EFFORT="low"
 
 # ── EvolveAgent config ───────────────────────────────────────────────────────
-NUM_TURNS=1
+NUM_TURNS=2
 MAX_SOLVER_CALLS=5
 MAX_ADVISOR_CONTEXT_ITERS=3
+MAX_ADVISOR_CODE_LOOKUPS=1
 LANG=cpp
 
 # ── Dr. GRPO ─────────────────────────────────────────────────────────────────x
 LOSS_REDUCTION="seq_mean_token_sum_norm"
 GRPO_NORM_BY_STD=false
 USE_KL_LOSS=false
+
+# -- vLLM knobs ─────────────────────────────────────────────────────────────────x
+ENFORCE_EAGER=true
+ATTENTION_BACKEND=FLASH_ATTN
+TEMPERATURE=1.0
 
 cd "$PROJECT_ROOT/SkyRL"
 
@@ -130,14 +136,14 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   generator.inference_engine.enable_chunked_prefill=true \
   generator.inference_engine.max_num_batched_tokens=8192 \
   generator.inference_engine.max_num_seqs=1024 \
-  generator.inference_engine.enforce_eager=true \
+  generator.inference_engine.enforce_eager=$ENFORCE_EAGER \
   generator.inference_engine.fully_sharded_loras=false \
   generator.inference_engine.enable_ray_prometheus_stats=false \
   generator.inference_engine.override_existing_update_group=auto \
   generator.inference_engine.weight_transfer_threshold_cuda_ipc_GB=1.0 \
   generator.n_samples_per_prompt=$N_SAMPLES_PER_PROMPT \
   generator.sampling_params.max_generate_length=32768 \
-  generator.sampling_params.temperature=0.6 \
+  generator.sampling_params.temperature=$TEMPERATURE \
   generator.sampling_params.top_p=0.95 \
   generator.sampling_params.top_k=20 \
   generator.sampling_params.min_p=0.0 \
@@ -147,8 +153,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   generator.inference_engine.engine_init_kwargs.enable_log_requests=false \
   generator.inference_engine.engine_init_kwargs.enable_auto_tool_choice=true \
   generator.inference_engine.engine_init_kwargs.tool_call_parser=qwen3_coder \
-  generator.inference_engine.engine_init_kwargs.chat_template="$PROJECT_ROOT/SkyRL/skyrl/train/utils/templates/qwen3_5_acc_thinking.jinja2" \
-  generator.inference_engine.engine_init_kwargs.attention_backend=FLASH_ATTN \
+  generator.inference_engine.engine_init_kwargs.attention_backend=$ATTENTION_BACKEND \
   generator.inference_engine.engine_init_kwargs.language_model_only=true \
   generator.problem_id=0 \
   generator.snapshots_root="$SNAPSHOTS_ROOT" \
@@ -156,7 +161,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   generator.num_turns=$NUM_TURNS \
   generator.max_solver_calls=$MAX_SOLVER_CALLS \
   generator.max_advisor_context_iters=$MAX_ADVISOR_CONTEXT_ITERS \
-  generator.max_advisor_code_lookups=1 \
+  generator.max_advisor_code_lookups=$MAX_ADVISOR_CODE_LOOKUPS \
   generator.lang=$LANG \
   generator.solver_model="$SOLVER_MODEL" \
   generator.solver_reasoning_effort="$SOLVER_REASONING_EFFORT" \
@@ -167,8 +172,8 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   trainer.algorithm.loss_reduction=$LOSS_REDUCTION \
   trainer.algorithm.grpo_norm_by_std=$GRPO_NORM_BY_STD \
   trainer.algorithm.use_kl_loss=$USE_KL_LOSS \
-  trainer.algorithm.temperature=1.0 \
-  trainer.algorithm.max_seq_len=$LOSS_NORM_SEQ_LEN \
+  trainer.algorithm.temperature=$TEMPERATURE \
+  trainer.algorithm.max_seq_len=$MAX_TRAIN_SEQ_LEN \
   trainer.policy.fsdp_config.wrap_policy.transformer_layer_cls_to_wrap="['Qwen3_5DecoderLayer']" \
   trainer.ref.fsdp_config.wrap_policy.transformer_layer_cls_to_wrap="['Qwen3_5DecoderLayer']" \
   trainer.placement.colocate_all=true \
@@ -181,7 +186,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   trainer.policy_mini_batch_size=$MINI_BATCH_SIZE \
   trainer.micro_train_batch_size_per_gpu=1 \
   trainer.micro_forward_batch_size_per_gpu=1 \
-  trainer.use_sample_packing=false \
+  trainer.use_sample_packing=true \
   trainer.eval_before_train=false \
   trainer.export_path="$EXPORTS_DIR" \
   trainer.ckpt_path="$CKPTS_DIR" \
