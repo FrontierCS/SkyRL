@@ -21,7 +21,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
 TRAIN_DATA="['$PROJECT_ROOT/data/train_p0.jsonl']"
 SOLUTION_POOL_PATH="$PROJECT_ROOT/data/solution_pool_p0.json"
-SNAPSHOTS_ROOT="$PROJECT_ROOT/snapshots"
+SNAPSHOTS_ROOT="/data_pool/gen_snapshots/qwen9b_gpt54"
 
 RUN_NAME="evolve_p0_$(date +%Y%m%d_%H%M%S)"
 CKPTS_DIR="$DUMP_DIR/rl_ckpts/$RUN_NAME"
@@ -52,7 +52,7 @@ SOLVER_REASONING_EFFORT="low"
 # ── EvolveAgent config ───────────────────────────────────────────────────────
 NUM_TURNS=2
 MAX_SOLVER_CALLS=5
-MAX_ADVISOR_CONTEXT_ITERS=3
+MAX_ADVISOR_CONTEXT_ITERS=2
 MAX_ADVISOR_CODE_LOOKUPS=1
 LANG=cpp
 
@@ -145,7 +145,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   generator.inference_engine.override_existing_update_group=auto \
   generator.inference_engine.weight_transfer_threshold_cuda_ipc_GB=1.0 \
   generator.n_samples_per_prompt=$N_SAMPLES_PER_PROMPT \
-  generator.sampling_params.max_generate_length=32768 \
+  generator.sampling_params.max_generate_length=8192 \
   generator.sampling_params.temperature=$TEMPERATURE \
   generator.sampling_params.top_p=0.95 \
   generator.sampling_params.top_k=20 \
