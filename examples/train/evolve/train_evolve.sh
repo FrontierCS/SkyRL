@@ -39,7 +39,7 @@ ADVISOR_GPUS="0,1,2,3,4,5,6,7"
 NUM_GPUS=8
 TP_SIZE=1          # tensor parallel across 1 GPU
 NUM_ENGINES=8      # 8 GPUs / TP=1 = 8 engines
-MAX_TRAIN_SEQ_LEN=43000  # training sequence budget — bounds memory; 99%+ sequences are under 30K
+MAX_TRAIN_SEQ_LEN=42000  # training sequence budget — bounds memory; 99%+ sequences are under 30K
 N_SAMPLES_PER_PROMPT=8
 
 TRAIN_BATCH_SIZE=32
@@ -58,6 +58,7 @@ LANG=cpp
 
 # ── Checkpointing ─────────────────────────────────────────────────────────────
 CKPT_INTERVAL=2
+HF_SAVE_INTERVAL=2  # Export HF-format weights alongside FSDP checkpoints
 
 # ── Dr. GRPO ─────────────────────────────────────────────────────────────────x
 LOSS_REDUCTION="seq_mean_token_sum_norm"
@@ -191,7 +192,9 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   trainer.micro_forward_batch_size_per_gpu=1 \
   trainer.use_sample_packing=true \
   trainer.ckpt_interval=$CKPT_INTERVAL \
+  trainer.hf_save_interval=$HF_SAVE_INTERVAL \
   trainer.eval_before_train=false \
+  trainer.eval_interval=0 \
   trainer.export_path="$EXPORTS_DIR" \
   trainer.ckpt_path="$CKPTS_DIR" \
   trainer.log_path="$LOG_DIR" \
