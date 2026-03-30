@@ -21,7 +21,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
 TRAIN_DATA="['$PROJECT_ROOT/data/train_p0.jsonl']"
 SOLUTION_POOL_PATH="$PROJECT_ROOT/data/solution_pool_p0.json"
-SNAPSHOTS_ROOT="/data_pool/gen_snapshots/qwen9b_gpt54"
+SNAPSHOTS_ROOT="/data_pool/gen_snapshots/qwen9b_gpt54_small"
 
 RUN_NAME="evolve_p0_$(date +%Y%m%d_%H%M%S)"
 CKPTS_DIR="$DUMP_DIR/rl_ckpts/$RUN_NAME"
@@ -37,13 +37,13 @@ SERVED_MODEL_NAME="Qwen3.5-9B"
 # All 8 GPUs for the advisor vLLM + FSDP training (solver is GPT-5 via API)
 ADVISOR_GPUS="0,1,2,3,4,5,6,7"
 NUM_GPUS=8
-TP_SIZE=1          # tensor parallel across 1 GPU
-NUM_ENGINES=8      # 8 GPUs / TP=1 = 8 engines
-MAX_TRAIN_SEQ_LEN=42000  # training sequence budget — bounds memory; 99%+ sequences are under 30K
+TP_SIZE=1        # tensor parallel across 2 GPUs
+NUM_ENGINES=8      # 8 GPUs / TP=2 = 4 engines
+MAX_TRAIN_SEQ_LEN=36000  # training sequence budget — max prompt+response ~26K
 N_SAMPLES_PER_PROMPT=8
 
-TRAIN_BATCH_SIZE=32
-MINI_BATCH_SIZE=32
+TRAIN_BATCH_SIZE=8
+MINI_BATCH_SIZE=8
 
 # ── Solver (frozen GPT-5 via OpenAI API) ────────────────────────────────────
 SOLVER_MODEL="gpt-5.4"
@@ -55,6 +55,9 @@ MAX_SOLVER_CALLS=5
 MAX_ADVISOR_CONTEXT_ITERS=2
 MAX_ADVISOR_CODE_LOOKUPS=1
 LANG=cpp
+
+# ── Training ──────────────────────────────────────────────────────────────────
+EPOCHS=10
 
 # ── Checkpointing ─────────────────────────────────────────────────────────────
 CKPT_INTERVAL=2
@@ -146,7 +149,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   generator.inference_engine.override_existing_update_group=auto \
   generator.inference_engine.weight_transfer_threshold_cuda_ipc_GB=1.0 \
   generator.n_samples_per_prompt=$N_SAMPLES_PER_PROMPT \
-  generator.sampling_params.max_generate_length=8192 \
+  generator.sampling_params.max_generate_length=6000 \
   generator.sampling_params.temperature=$TEMPERATURE \
   generator.sampling_params.top_p=0.95 \
   generator.sampling_params.top_k=20 \
@@ -190,6 +193,7 @@ $PREFIX_SKYRL_PYTHON -m examples.train.evolve.main_evolve \
   trainer.policy_mini_batch_size=$MINI_BATCH_SIZE \
   trainer.micro_train_batch_size_per_gpu=1 \
   trainer.micro_forward_batch_size_per_gpu=1 \
+  trainer.epochs=$EPOCHS \
   trainer.use_sample_packing=true \
   trainer.ckpt_interval=$CKPT_INTERVAL \
   trainer.hf_save_interval=$HF_SAVE_INTERVAL \
