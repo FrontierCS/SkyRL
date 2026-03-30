@@ -407,6 +407,7 @@ class SamplingParams(BaseConfig):
     top_p: float = 1.0
     min_p: float = 0.0
     top_k: int = -1
+    presence_penalty: float = 0.0
     logprobs: Optional[int] = 1
     stop: Optional[List[str]] = None
     additional_kwargs: Optional[Dict[str, Any]] = None

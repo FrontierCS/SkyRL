@@ -26,6 +26,81 @@ from skyrl.backends.skyrl_train.utils.torch_utils import (
 )
 
 
+def _patch_qwen3_5():
+    """Apply patches for Qwen3.5 model compatibility issues in transformers 5.3.0.
+
+    1. Fix 3D MRoPE position_ids passed to decoder layers instead of 2D text_position_ids,
+       which causes CUDA errors with flash attention. Upstream fix: huggingface/transformers#44399
+    2. Fix CPU tensor creation in torch_chunk_gated_delta_rule that fails during
+       gradient checkpointing recomputation.
+    """
+    try:
+        import inspect
+        from transformers.models.qwen3_5.modeling_qwen3_5 import Qwen3_5DecoderLayer, Qwen3_5TextModel
+
+        # Verify that the fast-path kernels (causal-conv1d + flash-linear-attention)
+        # are available.  Without them the model falls back to pure-PyTorch
+        # implementations of causal conv1d and the gated delta rule, which are
+        # significantly slower for both forward and backward passes.
+        from transformers.models.qwen3_5.modeling_qwen3_5 import is_fast_path_available
+        if is_fast_path_available:
+            logger.info("Qwen3.5 fast path is ENABLED (causal-conv1d + flash-linear-attention)")
+        else:
+            logger.warning(
+                "Qwen3.5 fast path is DISABLED — falling back to slow PyTorch kernels for "
+                "causal conv1d and gated delta rule (both forward and backward). "
+                "Install causal-conv1d and flash-linear-attention to enable the fast path."
+            )
+
+        # Patch 1: Fix 3D position_ids → 2D
+        source = inspect.getsource(Qwen3_5TextModel.forward)
+        if "decoder_layer" not in source or "position_ids=text_position_ids" not in source.split("decoder_layer")[-1]:
+            _original_decoder_forward = Qwen3_5DecoderLayer.forward
+
+            def _patched_decoder_forward(self, hidden_states, position_ids=None, **kwargs):
+                if position_ids is not None and position_ids.ndim == 3:
+                    position_ids = position_ids[0]
+                return _original_decoder_forward(self, hidden_states, position_ids=position_ids, **kwargs)
+
+            Qwen3_5DecoderLayer.forward = _patched_decoder_forward
+            logger.info("Patched Qwen3.5 decoder layer to fix 3D position_ids")
+
+        # Patch 2: Fix CPU tensor creation in chunk_gated_delta_rule
+        # import transformers.models.qwen3_5.modeling_qwen3_5 as mod
+
+        # orig_fn = mod.torch_chunk_gated_delta_rule
+        # src = inspect.getsource(orig_fn)
+        # if ".to(value)" in src:
+        #     import functools
+
+        #     @functools.wraps(orig_fn)
+        #     def _patched_delta_rule(*args, **kwargs):
+        #         # Pre-create initial_state on the correct device if not provided.
+        #         # Note: key/value arrive as (batch, seq_len, num_heads, head_dim) before
+        #         # the function's internal transpose, so dim indices differ from the
+        #         # post-transpose shape used inside torch_chunk_gated_delta_rule.
+        #         sig = inspect.signature(orig_fn)
+        #         bound = sig.bind(*args, **kwargs)
+        #         bound.apply_defaults()
+        #         if bound.arguments.get("initial_state") is None:
+        #             key = bound.arguments["key"]
+        #             value = bound.arguments["value"]
+        #             # key: (batch, seq_len, num_heads, k_head_dim)
+        #             b = key.shape[0]
+        #             num_heads = key.shape[2]
+        #             kd = key.shape[3]
+        #             vd = value.shape[3]
+        #             bound.arguments["initial_state"] = torch.zeros(b, num_heads, kd, vd, device=value.device, dtype=value.dtype)
+        #         return orig_fn(*bound.args, **bound.kwargs)
+
+        #     mod.torch_chunk_gated_delta_rule = _patched_delta_rule
+        #     logger.info("Patched Qwen3.5 torch_chunk_gated_delta_rule to fix CUDA tensor creation")
+    except (ImportError, AttributeError, TypeError) as e:
+        logger.debug(f"Qwen3.5 patches skipped: {e}")
+
+
+_patch_qwen3_5()
+
 class HFModelWrapper(nn.Module):
     """
     Base class for wrapped HF models in reinforcement learning.
